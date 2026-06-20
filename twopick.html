@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2ピック A/B同時比較＋イベント体験 モックアップ</title>
+<style>
+  :root{
+    --bg:#12151a; --bg-felt:#161b22; --surface:#1c222b; --surface-2:#232a34; --surface-3:#2b333f;
+    --line:rgba(255,255,255,.08); --line-strong:rgba(255,255,255,.16);
+    --text:#e9ecf1; --muted:#9aa3b0; --faint:#6c7585;
+    --accent:#c8a24a; --accent-2:#d9b85f; --accent-soft:rgba(200,162,74,.16);
+    --self:#5a8fc7; --opp:#c86a52;
+    --radius:6px; --radius-lg:10px;
+    --shadow-pop:0 10px 30px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(120% 90% at 50% -10%, #1b222c 0%, var(--bg) 55%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,.012) 0 2px, transparent 2px 5px),
+      var(--bg);
+    padding:24px;
+  }
+  h1.doc{font-size:15px; font-weight:600; letter-spacing:.04em; color:var(--muted); margin:0 0 4px;}
+  p.doc{font-size:12px; color:var(--faint); margin:0 0 18px;}
+  .frame-label{font-size:12px; color:var(--accent); letter-spacing:.08em; margin:22px 0 8px; display:flex; align-items:center; gap:8px;}
+  .frame-label .bar{width:22px; height:2px; background:var(--accent);}
+  .device{
+    border:1px solid var(--line-strong); border-radius:12px; overflow:hidden;
+    box-shadow:var(--shadow-pop); position:relative; background:var(--bg-felt);
+  }
+  .cap{
+    position:absolute; z-index:40; font-size:10.5px; line-height:1.5; color:#cdd3dd;
+    background:rgba(12,15,20,.82); border:1px solid var(--accent); border-left-width:3px;
+    border-radius:5px; padding:6px 9px; max-width:230px; pointer-events:none;
+  }
+  .cap b{color:var(--accent-2); font-weight:600;}
+
+  .pick{display:grid; grid-template-columns:1fr minmax(280px,340px); height:100%; min-height:0;}
+  .pick__main{overflow:hidden; padding:16px 20px; display:flex; flex-direction:column; gap:12px; position:relative;}
+  .pick__head{display:flex; align-items:center; gap:12px;}
+  .pick__count{font-size:21px; font-weight:800; font-variant-numeric:tabular-nums;}
+  .pick__count .faint{font-size:13px; color:var(--faint); font-weight:500;}
+  .remain{font-size:12px; color:var(--accent); border:1px solid var(--accent); border-radius:999px; padding:2px 9px;}
+  .pick__progress{flex:1; height:8px; border-radius:999px; background:var(--surface-2); overflow:hidden; border:1px solid var(--line);}
+  .pick__progress span{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2));}
+  .slotlabel{display:inline-block; padding:3px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent); font-size:11px; white-space:nowrap;}
+  .undo-btn{font-size:12px; color:var(--text); background:var(--surface-2); border:1px solid var(--line-strong); border-radius:var(--radius); padding:5px 11px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;}
+  .undo-btn .tri{width:0; height:0; border:5px solid transparent; border-right-color:var(--text); margin-right:1px;}
+  .undo-btn[disabled]{opacity:.35;}
+  .lead{font-size:12.5px; color:var(--muted); margin:0;}
+  .lead b{color:var(--text);}
+
+  .opts{display:grid; grid-template-columns:1fr 44px 1fr; gap:14px; flex:1; min-height:0;}
+  .opt{border:2px solid var(--line-strong); border-radius:var(--radius-lg); padding:13px; background:var(--surface);
+       display:flex; flex-direction:column; gap:10px; cursor:pointer; transition:transform .14s,border-color .14s,box-shadow .14s; position:relative;}
+  .opt:hover{transform:translateY(-3px); border-color:var(--accent);}
+  .opt.is-chosen{border-color:var(--accent); box-shadow:0 0 0 4px rgba(200,162,74,.12),0 16px 34px -16px rgba(0,0,0,.7); transform:translateY(-3px);}
+  .opt.is-dimmed{opacity:.5; filter:saturate(.6); transform:scale(.97);}
+  .opt__label{display:flex; align-items:center; justify-content:space-between; font-weight:800;}
+  .opt__badge{width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800; background:var(--surface-3); border:1px solid var(--line-strong); color:var(--text);}
+  .opt__count{font-size:12px; color:var(--faint); font-weight:500;}
+  .opt__cards{display:flex; gap:10px; justify-content:center; flex:1; align-items:center;}
+  .opt__hint{text-align:center; font-size:11.5px; color:var(--muted);}
+  .opt__pick{margin-top:2px; padding:8px; border-radius:var(--radius); border:1px solid #8d7233; font-weight:600; font-size:13px;
+             background:linear-gradient(180deg,#d3ad53,#b8923f); color:#20180a; cursor:pointer; text-align:center;}
+  .opt.is-dimmed .opt__pick{background:var(--surface-2); color:var(--muted); border-color:var(--line-strong);}
+  .chosen-flag{position:absolute; top:-9px; left:11px; font-size:10.5px; color:#20180a; background:var(--accent-2); border-radius:4px; padding:2px 8px; display:flex; align-items:center; gap:4px; font-weight:700;}
+  .chosen-flag .tri{width:0;height:0;border:4px solid transparent;border-bottom-color:#20180a;}
+  .vs{display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px;}
+  .vs__line{width:1px; flex:1; background:linear-gradient(var(--line),transparent);}
+  .vs__txt{font-size:13px; font-weight:800; color:var(--faint); letter-spacing:.05em; writing-mode:vertical-rl; padding:6px 0; border:1px solid var(--line); border-radius:999px;}
+
+  .cardface{width:96px; height:134px; border-radius:6px; border:1px solid var(--line-strong); position:relative; overflow:hidden;
+            box-shadow:0 6px 16px -6px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05); background:#202734;}
+  .cardface .art{position:absolute; inset:3px 3px 38px; border-radius:4px;}
+  .cardface .nm{position:absolute; left:4px; right:4px; bottom:4px; font-size:9.5px; color:#e9ecf1; line-height:1.25; text-shadow:0 1px 2px rgba(0,0,0,.8);}
+  .cardface .cost{position:absolute; top:4px; left:4px; width:18px; height:18px; border-radius:50%; background:rgba(12,15,20,.85); border:1px solid var(--line-strong); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+  .civ-fire{background:linear-gradient(160deg,#7a2c1c,#3a1710);} .civ-water{background:linear-gradient(160deg,#1d4d77,#0e2740);}
+  .civ-light{background:linear-gradient(160deg,#8a7320,#3d3410);} .civ-nature{background:linear-gradient(160deg,#2c5a22,#163010);}
+  .civ-dark{background:linear-gradient(160deg,#3a2444,#1a0f22);}
+
+  .streak{border-top:1px solid var(--line); padding-top:9px; display:flex; align-items:center; gap:10px;}
+  .streak__lbl{font-size:11px; color:var(--faint); white-space:nowrap;}
+  .streak__track{display:flex; gap:4px; flex:1; overflow:hidden; align-items:flex-end; height:42px;}
+  .scard{width:26px; height:37px; border-radius:3px; border:1px solid var(--line-strong); box-shadow:0 3px 7px -3px rgba(0,0,0,.7);}
+  .scard.fresh{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft);}
+  .streak__counts{display:flex; gap:8px; font-size:11px; color:var(--muted); white-space:nowrap;}
+  .streak__counts b{color:var(--text);}
+
+  .side{border-left:1px solid var(--line); background:var(--surface); display:flex; flex-direction:column; min-height:0;}
+  .side__head{padding:9px 11px; border-bottom:1px solid var(--line);}
+  .seg{display:inline-flex; background:var(--bg-felt); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;}
+  .seg b{padding:5px 9px; font-size:11px; color:var(--muted); border-right:1px solid var(--line); font-weight:500;}
+  .seg b.on{background:var(--accent-soft); color:var(--accent);}
+  .side__body{flex:1; overflow:hidden; padding:11px;}
+  .statline{display:flex; gap:10px; font-size:12px; color:var(--muted); margin-bottom:10px;}
+  .statline b{color:var(--text);}
+  .deckrow{display:flex; align-items:center; gap:7px; padding:4px 7px; border-radius:5px; background:var(--surface-2); margin-bottom:4px; font-size:11.5px;}
+  .deckrow .d{width:10px; height:10px; border-radius:2px;}
+
+  .pw{background:var(--bg-felt); display:flex; flex-direction:column; height:100%; position:relative;}
+  .pw__head{display:flex; align-items:center; gap:10px; padding:8px 14px; border-bottom:1px solid var(--line);}
+  .pw__stage{flex:1; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; padding:8px 0;}
+  .pw__opt{width:78%; max-width:520px; border:2px solid var(--accent); border-radius:var(--radius-lg); background:var(--surface); padding:12px 16px; box-shadow:0 0 0 4px rgba(200,162,74,.10);}
+  .pw__opt .opt__cards{gap:14px;}
+  .pw__opt .cardface{width:118px; height:165px;}
+  .pw__peek{position:absolute; top:50%; right:10px; transform:translateY(-50%); width:34px; height:120px; border-radius:6px; border:1px dashed var(--line-strong); background:rgba(255,255,255,.02); display:flex; align-items:center; justify-content:center; color:var(--faint); font-size:11px;}
+  .pw__dots{display:flex; gap:8px; justify-content:center; padding:4px 0 2px;}
+  .pw__dot{width:8px; height:8px; border-radius:50%; background:var(--surface-3); border:1px solid var(--line-strong);}
+  .pw__dot.on{background:var(--accent); border-color:var(--accent);}
+  .pw__bar{display:flex; gap:0; border-top:1px solid var(--line-strong);}
+  .pw__bar button{flex:1; padding:14px 8px; font-size:14px; font-weight:700; cursor:pointer; border:none; color:#20180a;}
+  .pw__bar .a{background:linear-gradient(180deg,#d3ad53,#b8923f); border-right:1px solid #20180a;}
+  .pw__bar .b{background:linear-gradient(180deg,#c8a24a,#a8842f);}
+  .pw__bar .sub{display:block; font-size:10px; font-weight:600; opacity:.8;}
+
+  .home{padding:22px; display:flex; flex-direction:column; gap:14px; min-height:100%;}
+  .home__resume{display:flex; gap:10px;}
+  .resume-btn{padding:9px 14px; border-radius:var(--radius); font-size:13px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px;}
+  .resume-btn.battle{background:linear-gradient(180deg,#d3ad53,#b8923f); color:#20180a; border:1px solid #8d7233;}
+  .resume-btn.pick{background:var(--surface-2); color:var(--text); border:1px solid var(--accent);}
+  .tri-play{width:0;height:0;border:6px solid transparent;border-left-color:currentColor;}
+  .menu{display:grid; grid-template-columns:repeat(3,1fr); gap:12px;}
+  .tile{background:linear-gradient(170deg,var(--surface-2),var(--surface)); border:1px solid var(--line-strong); border-radius:var(--radius-lg); padding:15px; position:relative; overflow:hidden;}
+  .tile.acc{border-color:rgba(200,162,74,.55); box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(200,162,74,.12);}
+  .tile .t{font-size:14px; font-weight:700; margin-bottom:5px;}
+  .tile .d{font-size:11.5px; color:var(--muted); line-height:1.5;}
+  .tile .rule{margin-top:8px; font-size:11px; color:var(--accent);}
+  .tag{position:absolute; top:9px; right:9px; font-size:9.5px; color:#20180a; background:var(--accent-2); border-radius:4px; padding:2px 7px; font-weight:700;}
+</style>
+</head>
+<body>
+
+<h1 class="doc">2ピック / A・B同時比較＋選択イベント＋導線分離 ― 設計モックアップ</h1>
+<p class="doc">暗い対戦卓トーン継承（既存 theme.css の変数を流用）。絵文字なし・アイコンはCSS図形。1280×800を基本にスマホ横844×390想定を併記。</p>
+
+<div class="frame-label"><span class="bar"></span>案1：PC・iPad横（1280×800）― A案2枚 / VS / B案2枚を同時表示。選択イベント再生中の瞬間を描画</div>
+<div class="device" style="width:1280px; height:800px;">
+  <div class="pick">
+    <div class="pick__main">
+      <div class="pick__head">
+        <span class="pick__count">8<span class="faint"> / 24</span></span>
+        <span class="remain">あと 16 回</span>
+        <div class="pick__progress"><span style="width:30%"></span></div>
+        <span class="slotlabel">受け札枠</span>
+        <button class="undo-btn"><span class="tri"></span>1つ戻す</button>
+      </div>
+      <p class="lead">2枚組が2通り。<b>どちらかの2枚組</b>を選ぶとその2枚がデッキに加わる（2枚提示1枚選択ではない）。</p>
+
+      <div class="opts">
+        <div class="opt is-chosen">
+          <div class="chosen-flag"><span class="tri"></span>選択中</div>
+          <div class="opt__label"><span class="opt__badge">A</span><span class="opt__count">2枚セット</span></div>
+          <div class="opt__cards">
+            <div class="cardface"><span class="cost">3</span><div class="art civ-water"></div><div class="nm">アクア・スーパーエメラル</div></div>
+            <div class="cardface"><span class="cost">5</span><div class="art civ-light"></div><div class="nm">ヘブンズ・ゲート</div></div>
+          </div>
+          <div class="opt__hint">アクア・スーパーエメラル ＋ ヘブンズ・ゲート</div>
+          <div class="opt__pick">A案のこの2枚を選ぶ</div>
+        </div>
+
+        <div class="vs">
+          <div class="vs__line"></div><div class="vs__txt">VS</div><div class="vs__line"></div>
+        </div>
+
+        <div class="opt is-dimmed">
+          <div class="opt__label"><span class="opt__badge">B</span><span class="opt__count">2枚セット</span></div>
+          <div class="opt__cards">
+            <div class="cardface"><span class="cost">7</span><div class="art civ-fire"></div><div class="nm">ボルシャック・ドラゴン</div></div>
+            <div class="cardface"><span class="cost">2</span><div class="art civ-dark"></div><div class="nm">デーモン・ハンド</div></div>
+          </div>
+          <div class="opt__hint">ボルシャック・ドラゴン ＋ デーモン・ハンド</div>
+          <div class="opt__pick">B案のこの2枚を選ぶ</div>
+        </div>
+      </div>
+
+      <div class="streak">
+        <span class="streak__lbl">積み上げ</span>
+        <div class="streak__track">
+          <div class="scard civ-light"></div><div class="scard civ-fire"></div><div class="scard civ-water"></div>
+          <div class="scard civ-nature"></div><div class="scard civ-dark"></div><div class="scard civ-water"></div>
+          <div class="scard civ-fire"></div><div class="scard civ-light"></div><div class="scard civ-nature"></div>
+          <div class="scard civ-water"></div><div class="scard civ-dark"></div><div class="scard civ-fire"></div>
+          <div class="scard fresh civ-water"></div><div class="scard fresh civ-light"></div>
+        </div>
+        <div class="streak__counts"><span>メイン <b>14</b></span><span>超次元 <b>0</b></span><span>超GR <b>0</b></span></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="side__head"><div class="seg"><b class="on">現在のデッキ</b><b>グラフ</b><b>履歴</b></div></div>
+      <div class="side__body">
+        <div class="statline"><span>メイン <b>14</b></span></div>
+        <div class="deckrow"><span class="d civ-water"></span>アクア・スーパーエメラル<span style="margin-left:auto;color:var(--faint)">3</span></div>
+        <div class="deckrow"><span class="d civ-light"></span>ヘブンズ・ゲート<span style="margin-left:auto;color:var(--faint)">5</span></div>
+        <div class="deckrow"><span class="d civ-fire"></span>ボルシャック・大和・ドラゴン<span style="margin-left:auto;color:var(--faint)">6</span></div>
+        <div class="deckrow"><span class="d civ-nature"></span>霞み妖精ジャスミン<span style="margin-left:auto;color:var(--faint)">2</span></div>
+        <div class="deckrow"><span class="d civ-dark"></span>デス・スモーク<span style="margin-left:auto;color:var(--faint)">3</span></div>
+        <p style="font-size:11px;color:var(--faint);margin-top:8px;">詳細（不選択カード含む）は「履歴」タブに残る。帯＝ダイジェスト / タブ＝詳細。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="cap" style="top:96px; right:14px;">A/B は<b>色だけで区別しない</b>。文字バッジ＋位置＋（選択時）金縁と「選択中」ラベルを併用。卓の自分=水/相手=火の色とは別扱い。</div>
+  <div class="cap" style="bottom:120px; left:355px;">選んだ瞬間：選んだ側が<b>金発光</b>→選ばない側が薄く→2枚が右下の帯へ流れて積む。0.45〜0.6秒の1モーション。</div>
+  <div class="cap" style="bottom:14px; left:14px;">履歴帯＝<b>「積み上がってる感」</b>を常時可視化（ザイガルニク／ピーク・エンド）。最新2枚は金縁で1秒だけ強調。</div>
+  <div class="cap" style="top:14px; left:300px;">ヘッダーに<b>「1つ戻す」</b>。pick.history を逆再生するだけで対戦盤面Undoとは別系統。残り回数も併記（ゴール勾配）。</div>
+</div>
+
+<div class="frame-label"><span class="bar"></span>案2：スマホ横PWA（844×390）― 同時表示が無理な幅。1案ずつスワイプ閲覧＋画面下に「Aを選ぶ/Bを選ぶ」を常時固定</div>
+<div class="device" style="width:844px; height:390px;">
+  <div class="pw">
+    <div class="pw__head">
+      <span class="pick__count" style="font-size:17px;">8<span class="faint"> / 24</span></span>
+      <span class="remain">あと 16</span>
+      <div class="pick__progress"><span style="width:30%"></span></div>
+      <span class="slotlabel">受け札枠</span>
+      <button class="undo-btn"><span class="tri"></span>戻す</button>
+    </div>
+    <div class="pw__stage">
+      <div class="pw__opt">
+        <div class="opt__label"><span class="opt__badge">A</span><span class="opt__count">2枚セット ・ アクア＋ヘブンズ</span></div>
+        <div class="opt__cards" style="margin-top:8px;">
+          <div class="cardface"><span class="cost">3</span><div class="art civ-water"></div><div class="nm">アクア・スーパーエメラル</div></div>
+          <div class="cardface"><span class="cost">5</span><div class="art civ-light"></div><div class="nm">ヘブンズ・ゲート</div></div>
+        </div>
+      </div>
+      <div class="pw__peek">B&nbsp;→</div>
+    </div>
+    <div class="pw__dots"><span class="pw__dot on"></span><span class="pw__dot"></span></div>
+    <div class="pw__bar">
+      <button class="a">Aを選ぶ<span class="sub">アクア ＋ ヘブンズ</span></button>
+      <button class="b">Bを選ぶ<span class="sub">ボルシャック ＋ デーモン・ハンド</span></button>
+    </div>
+  </div>
+  <div class="cap" style="top:42px; right:12px; max-width:200px;">スワイプは<b>閲覧だけ</b>。確定は必ず下の固定ボタン経由＝スワイプの誤確定が起きない。移動8px超でスワイプ判定、未満はタップ（詳細）。</div>
+  <div class="cap" style="bottom:62px; left:12px; max-width:215px;">どちらの案を見ていても<b>両方の選択ボタンが画面内</b>に常在（sticky・safe-area考慮）。スクロールで隠れない。</div>
+</div>
+
+<div class="frame-label"><span class="bar"></span>案3：ホーム導線の分離 ― 「2ピック開始（前回ルールで即開始）」と「ピック設定（選ぶ/編集）」を別タイルに。進行中だけ再開を出す</div>
+<div class="device" style="width:1280px; height:430px;">
+  <div class="home">
+    <div class="home__resume">
+      <button class="resume-btn battle"><span class="tri-play"></span>対戦を再開する</button>
+      <button class="resume-btn pick"><span class="tri-play"></span>ピックを再開（8 / 24）</button>
+    </div>
+    <div class="menu">
+      <div class="tile acc">
+        <span class="tag">前回ルール</span>
+        <div class="t">2ピック開始</div>
+        <div class="d">設定を挟まず即スタート。前回使ったルールで round 1 を生成。</div>
+        <div class="rule">使用ルール：標準2ピック（24回）</div>
+      </div>
+      <div class="tile">
+        <div class="t">ピック設定</div>
+        <div class="d">何回目にどんな抽選をするか、ルールを選ぶ・編集・新規作成。</div>
+        <div class="rule" style="color:var(--faint)">一覧画面へ</div>
+      </div>
+      <div class="tile">
+        <div class="t">新規対戦</div>
+        <div class="d">盤面を用意して対戦開始。1人で両席を操作できる卓。</div>
+      </div>
+    </div>
+  </div>
+  <div class="cap" style="top:78px; right:14px; max-width:215px;">「即開始」と「設定」を<b>別タイルに割る</b>。毎回どっちに飛ぶか読める。即開始は前回ルール優先（lastPickRuleId ?? 既定 ?? 先頭）。</div>
+  <div class="cap" style="top:20px; left:430px; max-width:215px;">進行中ピックがある時<b>だけ</b>「ピックを再開（N/総数）」を出す。無ければ非表示＝迷子を作らない。</div>
+</div>
+
+</body>
+</html>

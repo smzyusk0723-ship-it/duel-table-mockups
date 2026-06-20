@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>move-feedback モック / カード移動後の視覚フィードバック</title>
+<style>
+  :root{
+    --bg0:#16130e; --bg1:#211c14; --surface:#2a241a; --surface2:#332b1f;
+    --line:rgba(255,255,255,0.07); --line2:rgba(255,255,255,0.12);
+    --text:#e8e2d4; --t2:#b6ad98; --t3:#7d7563;
+    --accent:#c8a24a; --accent-soft:rgba(200,162,74,0.16);
+    --gold-glow:rgba(200,162,74,0.55);
+    --civ-fire:#c4503a; --civ-water:#3f72b8; --civ-light:#c9b24a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 50% 8%, rgba(200,162,74,0.05) 0%, transparent 55%),
+      linear-gradient(180deg,#16130e 0%, #211c14 60%, #16130e 100%);
+    color:var(--text);
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",system-ui,sans-serif;
+    min-height:100vh; padding:22px 26px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page-head{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:18px;}
+  .page-head h1{font-size:16px;font-weight:600;letter-spacing:.06em;margin:0;color:var(--text);}
+  .page-head .sub{font-size:12px;color:var(--t3);letter-spacing:.04em;}
+  .page-head .tag{margin-left:auto;font-size:11px;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:2px 10px;letter-spacing:.08em;}
+  .frames{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;}
+  .device{position:relative;}
+  .device__cap{font-size:11px;color:var(--t3);letter-spacing:.06em;margin:0 0 7px 2px;}
+  .table{
+    width:760px;background:var(--bg1);border:1px solid var(--line2);border-radius:6px;
+    box-shadow:0 30px 60px -28px rgba(0,0,0,.7),0 14px 30px -18px rgba(0,0,0,.8);
+    overflow:hidden;position:relative;
+  }
+  .topbar{
+    display:flex;align-items:center;gap:14px;height:42px;padding:0 14px;
+    background:linear-gradient(180deg,#241f16,#1d1810);border-bottom:1px solid var(--line);
+    font-size:12px;color:var(--t2);
+  }
+  .turnbadge{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);}
+  .turnbadge b{color:var(--accent);font-size:13px;}
+  .seatdot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .seatdot--p1{background:#5b8fd6;box-shadow:0 0 6px rgba(91,143,214,.6);}
+  .seatdot--p2{background:#b67b3c;}
+  .clock{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t3);}
+  .clock b{color:var(--t2);font-weight:500;}
+  .spacer{flex:1;}
+  .tbtn{font-size:11px;color:var(--t2);border:1px solid var(--line2);background:#211c14;border-radius:4px;padding:3px 9px;}
+  .tbtn--turn{color:#20180a;background:linear-gradient(180deg,#d3ad53,#b8923f);border-color:#8d7233;font-weight:600;}
+  .board{padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;position:relative;}
+  .side{border:1px solid var(--line);border-radius:5px;background:linear-gradient(180deg,rgba(255,255,255,.012),rgba(0,0,0,.14));padding:9px 11px;}
+  .side.is-active{box-shadow:inset 0 0 0 1px var(--accent-soft);}
+  .side__head{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--t2);margin-bottom:8px;}
+  .side__name{display:flex;align-items:center;gap:6px;color:var(--text);font-size:12px;}
+  .pin{font-size:10px;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:0 7px;}
+  .side__body{display:flex;gap:12px;}
+  .rail{display:flex;flex-direction:column;gap:6px;width:108px;flex-shrink:0;}
+  .zonechip{position:relative;border:1px solid var(--line2);border-radius:4px;background:var(--surface);padding:6px 8px;display:flex;flex-direction:column;gap:1px;min-height:40px;}
+  .zonechip__name{font-size:10px;color:var(--t3);letter-spacing:.04em;}
+  .zonecount{font-size:17px;font-weight:600;color:var(--text);line-height:1;display:inline-block;}
+  .zonechip__sub{font-size:9px;color:var(--t3);}
+  .civs{display:flex;gap:3px;margin-top:3px;}
+  .civpip{width:8px;height:8px;border-radius:50%;}
+  .civpip--shape{border-radius:0;transform:rotate(45deg);}
+  .main{flex:1;display:flex;flex-direction:column;gap:9px;min-width:0;}
+  .bz__label{font-size:11px;color:var(--t2);margin-bottom:5px;letter-spacing:.03em;}
+  .bz__label .n{color:var(--accent);}
+  .bz__cards,.shieldrow{display:flex;gap:7px;flex-wrap:wrap;min-height:62px;align-items:flex-end;}
+  .bz__empty{font-size:10px;color:var(--t3);border:1px dashed var(--line2);border-radius:4px;padding:18px 14px;}
+  .card{width:46px;height:64px;border-radius:4px;border:1px solid rgba(0,0,0,.5);background:linear-gradient(160deg,#3a3225,#2a2419);position:relative;flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 4px 8px -4px rgba(0,0,0,.6);display:flex;align-items:flex-end;}
+  .card.s{width:34px;height:48px;}
+  .card.l{width:58px;height:80px;}
+  .card__name{font-size:8px;color:#efe7d4;padding:2px 3px;line-height:1.1;text-shadow:0 1px 1px #000;}
+  .card.is-selected{outline:2px solid var(--accent);outline-offset:1px;box-shadow:0 0 0 2px var(--accent-soft),0 6px 14px -4px rgba(0,0,0,.7);}
+  .card.tapped{transform:rotate(90deg);margin:0 9px;}
+  .card--back{background:repeating-linear-gradient(45deg,#2c2418,#2c2418 4px,#332b1d 4px,#332b1d 8px);}
+  .card--fire::before{content:"";position:absolute;inset:0;border-radius:4px;border-top:3px solid var(--civ-fire);}
+  .card--water::before{content:"";position:absolute;inset:0;border-radius:4px;border-top:3px solid var(--civ-water);}
+  .card--light::before{content:"";position:absolute;inset:0;border-radius:4px;border-top:3px solid var(--civ-light);}
+  .zonechip.is-flash, .bz.is-flash{box-shadow:inset 0 0 0 1px var(--gold-glow), 0 0 14px -2px var(--gold-glow);border-color:var(--accent);}
+  .bz{border:1px solid transparent;border-radius:5px;padding:3px;transition:box-shadow .25s;}
+  .ghost{position:absolute;width:46px;height:64px;border-radius:4px;background:linear-gradient(160deg,#4a3f2c,#332b1d);border:1px solid var(--accent);box-shadow:0 0 12px -1px var(--gold-glow);z-index:30;pointer-events:none;}
+  .ghost__name{font-size:8px;color:#efe7d4;position:absolute;bottom:2px;left:3px;text-shadow:0 1px 1px #000;}
+  .zonecount.is-bump, .bz__label .n.is-bump{color:var(--accent);transform:scale(1.4);transition:transform .12s;}
+  .toasts{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;z-index:40;pointer-events:none;}
+  .toast{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--text);background:rgba(33,28,20,.93);border:1px solid var(--line2);border-radius:5px;padding:6px 12px;box-shadow:0 8px 20px -8px rgba(0,0,0,.7);}
+  .toast--move{border-left:2px solid var(--accent);border-radius:0 5px 5px 0;}
+  .toast__arrow{color:var(--accent);font-weight:600;}
+  .toast__cname{color:var(--text);}
+  .toast__dest{color:var(--t2);}
+  .toast--save{color:var(--t2);}
+  .toast--save .dotok{width:7px;height:7px;border-radius:50%;background:#6fae6f;}
+  .caps{margin-top:14px;display:flex;flex-direction:column;gap:8px;max-width:760px;}
+  .cap{display:flex;gap:9px;font-size:11px;color:var(--t2);line-height:1.55;border-left:2px solid var(--accent);padding:2px 0 2px 11px;}
+  .cap b{color:var(--accent);font-weight:600;}
+  .cap .num{color:var(--accent);font-weight:700;flex-shrink:0;width:16px;}
+  .pwa{width:520px;height:240px;background:var(--bg1);border:1px solid var(--line2);border-radius:14px;box-shadow:0 24px 50px -26px rgba(0,0,0,.7);position:relative;overflow:hidden;padding:8px;}
+  .pwa .topbar{height:30px;border-radius:6px;}
+  .pwa .board{padding:8px;gap:6px;}
+  .pwa .side{padding:5px 7px;}
+  .pwa .side__body{gap:8px;}
+  .pwa .rail{width:78px;gap:4px;}
+  .pwa .zonechip{min-height:30px;padding:4px 6px;}
+  .pwa .zonecount{font-size:13px;}
+  .pwa .card{width:30px;height:42px;}
+  .pwa .card.l{width:34px;height:48px;}
+  .pwa .toasts{bottom:8px;}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0 2px;font-size:10px;color:var(--t3);}
+  .legend span{display:flex;align-items:center;gap:5px;}
+  .lg-flash{width:14px;height:10px;border:1px solid var(--accent);box-shadow:0 0 8px -1px var(--gold-glow);border-radius:2px;}
+  .lg-ghost{width:9px;height:13px;border:1px solid var(--accent);border-radius:2px;box-shadow:0 0 7px -1px var(--gold-glow);}
+  .lg-bump{color:var(--accent);font-weight:700;font-size:13px;}
+  .lg-toast{width:18px;height:9px;border-left:2px solid var(--accent);background:rgba(33,28,20,.9);border-radius:0 2px 2px 0;}
+</style>
+</head>
+<body>
+<div class="page-head">
+  <h1>move-feedback</h1>
+  <span class="sub">カード移動後の視覚フィードバック（4層・同時発火）</span>
+  <span class="tag">P2 / flagship</span>
+</div>
+<div class="legend">
+  <span><i class="lg-flash"></i>(1) ゾーン発光（枠線＝形）</span>
+  <span><i class="lg-ghost"></i>(2) カードが飛ぶ（位置＝方向）</span>
+  <span class="lg-bump">(3) 1.4×</span><span style="margin-left:-8px;">枚数の一瞬拡大（形）</span>
+  <span><i class="lg-toast"></i>(4) 「カード名 → 行き先」トースト（文字）</span>
+</div>
+<div class="frames">
+  <div class="device">
+    <div class="device__cap">PC 1280×800 想定 ／ 右クリック「マナへ」直後の瞬間（4層が同時に走っている状態を1枚に固定表示）</div>
+    <div class="table">
+      <div class="topbar">
+        <span class="turnbadge">ターン <b>3</b><span class="seatdot seatdot--p1"></span>プレイヤー1</span>
+        <span class="clock">ターン経過 <b>00:42</b></span>
+        <span class="clock">対戦 <b>06:18</b></span>
+        <span class="spacer"></span>
+        <span class="tbtn">ドロー</span><span class="tbtn">全アンタップ</span><span class="tbtn">シャッフル</span><span class="tbtn tbtn--turn">ターン終了</span>
+      </div>
+      <div class="board">
+        <div class="side">
+          <div class="side__head"><span class="side__name"><span class="seatdot seatdot--p2"></span>プレイヤー2</span><span class="clock" style="margin-left:auto;">累計 <b>02:55</b></span></div>
+          <div class="side__body">
+            <div class="rail">
+              <div class="zonechip"><span class="zonechip__name">山札</span><span class="zonecount">28</span></div>
+              <div class="zonechip"><span class="zonechip__name">マナ</span><span class="zonecount">3</span><span class="zonechip__sub">タップ 1 / アンタップ 2</span></div>
+              <div class="zonechip"><span class="zonechip__name">墓地</span><span class="zonecount">2</span><span class="civs"><i class="civpip" style="background:var(--civ-fire)"></i><i class="civpip civpip--shape" style="background:var(--civ-water)"></i></span></div>
+            </div>
+            <div class="main"><div class="bz"><div class="bz__label">バトルゾーン（<span class="n">1</span>）</div><div class="bz__cards"><div class="card l card--fire"><span class="card__name">ボルシャック</span></div></div></div></div>
+          </div>
+        </div>
+        <div class="side is-active">
+          <div class="side__head"><span class="side__name"><span class="seatdot seatdot--p1"></span>プレイヤー1</span><span class="pin">手番</span><span class="clock" style="margin-left:auto;">累計 <b>03:23</b></span></div>
+          <div class="side__body">
+            <div class="rail">
+              <div class="zonechip"><span class="zonechip__name">山札</span><span class="zonecount">27</span></div>
+              <div class="zonechip is-flash"><span class="zonechip__name">マナ</span><span class="zonecount is-bump">5</span><span class="zonechip__sub">タップ 0 / アンタップ 5</span></div>
+              <div class="zonechip"><span class="zonechip__name">墓地</span><span class="zonecount">1</span><span class="civs"><i class="civpip" style="background:var(--civ-light)"></i></span></div>
+            </div>
+            <div class="main"><div class="bz"><div class="bz__label">バトルゾーン（<span class="n">2</span>）</div><div class="bz__cards"><div class="card l card--water"><span class="card__name">アクア</span></div><div class="card l card--light tapped"><span class="card__name">ホーリー</span></div></div></div></div>
+          </div>
+        </div>
+        <div class="side">
+          <div class="side__head"><span class="side__name"><span class="seatdot seatdot--p1"></span>プレイヤー1の手札</span><span class="clock" style="margin-left:auto;">4枚</span></div>
+          <div class="bz__cards" style="min-height:0;">
+            <div class="card l card--fire"><span class="card__name">クリムゾン</span></div>
+            <div class="card l card--water"><span class="card__name">サイバー</span></div>
+            <div class="card l card--light"><span class="card__name">ジャスティス</span></div>
+            <div class="card l card--fire" style="opacity:.28;"><span class="card__name">（移動元）</span></div>
+          </div>
+        </div>
+        <div class="ghost" style="left:330px;top:300px;transform:translate(-150px,150px) scale(.62) rotate(-6deg);opacity:.55;"><span class="ghost__name">炎竜</span></div>
+        <div class="toasts">
+          <div class="toast toast--save"><span class="dotok"></span><span>デッキ「赤単速攻」を保存しました</span></div>
+          <div class="toast toast--move"><span class="toast__cname">炎竜 ボルシャック</span><span class="toast__arrow">→</span><span class="toast__dest">マナ</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="caps">
+      <div class="cap"><span class="num">1</span><span><b>移動の発信源は moveCard ただ1か所。</b>右クリック・メニュー経由でも、将来 D&D を足しても、同じ moveCard を通れば自動で全演出が走る。破壊・シールドブレイクも内部で moveCard を呼ぶので取りこぼさない。</span></div>
+      <div class="cap"><span class="num">2</span><span><b>色だけに頼らない。</b>(1)発光＝枠線（形）／ (2)飛ぶ＝位置と方向／ (3)枚数＝1.4×拡大（形）／ (4)トースト＝日本語の文字。ゴールドは文明色・手番色と別系統の演出色として少量だけ使う。</span></div>
+      <div class="cap"><span class="num">3</span><span><b>手動卓の事後表示のみ。</b>「ドローしましたか？」等の確認・指示・効果自動判定は足さない。履歴ではなく一瞬の手応え（履歴は既存ログのまま）。トースト・ゴーストは pointer-events:none で操作を奪わない。</span></div>
+      <div class="cap"><span class="num">4</span><span><b>非公開情報は漏らさない。</b>相手手札は枚数のみ、伏せカードは裏面のまま。移動トースト／ゴーストは自分の画面ローカルで、オンライン同期のスナップショット（game+logs）には載せない。</span></div>
+    </div>
+  </div>
+  <div class="device">
+    <div class="device__cap">横向きPWA 844×390 想定（縮約）／ ゾーン位置が縦並び/横並びで変わるため飛距離・サイズは実測（getBoundingClientRect）で都度計算</div>
+    <div class="pwa">
+      <div class="topbar">
+        <span class="turnbadge" style="font-size:11px;">ターン <b>3</b><span class="seatdot seatdot--p1"></span>P1</span>
+        <span class="clock" style="font-size:10px;">経過 <b>00:42</b></span>
+        <span class="spacer"></span>
+        <span class="tbtn" style="font-size:10px;padding:2px 7px;">ドロー</span><span class="tbtn tbtn--turn" style="font-size:10px;padding:2px 7px;">終了</span>
+      </div>
+      <div class="board">
+        <div class="side">
+          <div class="side__head" style="font-size:10px;"><span class="side__name" style="font-size:11px;"><span class="seatdot seatdot--p2"></span>P2</span></div>
+          <div class="side__body">
+            <div class="rail"><div class="zonechip"><span class="zonechip__name">山札</span><span class="zonecount">28</span></div><div class="zonechip"><span class="zonechip__name">墓地</span><span class="zonecount">2</span></div></div>
+            <div class="main"><div class="bz"><div class="bz__label" style="font-size:10px;">バトル（<span class="n">1</span>）</div><div class="bz__cards" style="min-height:44px;"><div class="card card--fire"></div></div></div></div>
+          </div>
+        </div>
+        <div class="side is-active">
+          <div class="side__head" style="font-size:10px;"><span class="side__name" style="font-size:11px;"><span class="seatdot seatdot--p1"></span>P1</span><span class="pin" style="font-size:9px;">手番</span></div>
+          <div class="side__body">
+            <div class="rail"><div class="zonechip is-flash"><span class="zonechip__name">マナ</span><span class="zonecount is-bump">5</span></div><div class="zonechip"><span class="zonechip__name">墓地</span><span class="zonecount">1</span></div></div>
+            <div class="main"><div class="bz"><div class="bz__label" style="font-size:10px;">バトル（<span class="n">2</span>）</div><div class="bz__cards" style="min-height:44px;"><div class="card card--water"></div><div class="card card--light tapped"></div></div></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="ghost" style="left:200px;top:150px;width:30px;height:42px;transform:translate(-95px,-45px) scale(.7) rotate(-8deg);opacity:.55;"></div>
+      <div class="toasts"><div class="toast toast--move" style="font-size:10px;padding:5px 10px;"><span class="toast__cname">炎竜 ボルシャック</span><span class="toast__arrow">→</span><span class="toast__dest">マナ</span></div></div>
+    </div>
+    <div class="caps" style="max-width:520px;">
+      <div class="cap"><span style="color:var(--accent);font-weight:700;flex-shrink:0;margin-right:2px;">PWA</span><span>画面下が指で隠れる横向きでは移動トーストを上寄せに切替できる余地を残す（既定は既存トーストと同じ下中央）。固定px禁止＝飛距離もサイズも実測。</span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>image-a11y 画像欠損フォールバック＋アクセシビリティ</title>
+<style>
+  :root{
+    --mat1:#211c14; --mat2:#16130e; --ink:#e8e1d2; --ink2:#b6ab93; --ink3:#7d735f;
+    --gold:#c9a96e; --gold2:#d4af37; --line:rgba(201,169,110,.22);
+    --civ-fire:#7a2418; --civ-water:#1d3a5e; --civ-light:#6b5a17; --civ-dark:#241a2c; --civ-nature:#23401f;
+    --warn:#b07d2f; --bad:#8a3b34;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:
+      radial-gradient(140% 120% at 50% -10%, #2a2316 0%, var(--mat1) 38%, var(--mat2) 100%);
+      color:var(--ink);font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+      -webkit-font-smoothing:antialiased;min-height:100vh}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.05;
+      background-image:repeating-linear-gradient(0deg,#000 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
+  .wrap{max-width:1280px;margin:0 auto;padding:26px 30px 60px}
+  h1{font-size:19px;font-weight:600;letter-spacing:.05em;margin:0 0 2px;color:var(--ink)}
+  .sub{font-size:12px;color:var(--ink3);letter-spacing:.04em;margin:0 0 22px}
+  .sub b{color:var(--gold);font-weight:600}
+  .secttl{font-size:12.5px;letter-spacing:.16em;color:var(--gold);
+      margin:30px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line);font-weight:600}
+  .grid{display:flex;flex-wrap:wrap;gap:22px}
+  .cardslot{width:150px}
+  .cardslot .cap{font-size:11px;color:var(--ink2);margin-top:8px;line-height:1.5;letter-spacing:.02em}
+  .cardslot .cap em{color:var(--gold);font-style:normal}
+  .card{
+    position:relative;width:150px;height:210px;border-radius:7px;overflow:hidden;
+    background:linear-gradient(155deg,#3a3326 0%,#221d15 100%);
+    border:1px solid rgba(0,0,0,.6);
+    box-shadow:0 14px 26px -12px rgba(0,0,0,.8),0 6px 10px -6px rgba(0,0,0,.7),
+               inset 0 1px 0 rgba(255,255,255,.05);
+    cursor:default;
+  }
+  .card.fire   {background:radial-gradient(120% 90% at 50% 18%,#7a2418 0%,#3a160f 70%,#1c0c08 100%)}
+  .card.water  {background:radial-gradient(120% 90% at 50% 18%,#1d3a5e 0%,#12243a 70%,#0a141f 100%)}
+  .card.nature {background:radial-gradient(120% 90% at 50% 18%,#23401f 0%,#152613 70%,#0c160a 100%)}
+  .art-ok{position:absolute;inset:0;background:
+      radial-gradient(80% 60% at 50% 35%,rgba(201,169,110,.42),transparent 70%),
+      linear-gradient(160deg,#5b4e34 0%,#2c2418 100%)}
+  .art-ok::after{content:"";position:absolute;inset:14px;border:1px solid rgba(255,255,255,.08);border-radius:4px}
+  .scrim{position:absolute;left:0;right:0;bottom:0;padding:7px 8px 8px;
+      background:linear-gradient(0deg,rgba(0,0,0,.86) 0%,rgba(0,0,0,.5) 60%,transparent 100%)}
+  .nm{font-size:11px;font-weight:600;color:#fff;letter-spacing:.02em;line-height:1.25}
+  .ty{font-size:9.5px;color:#d7cdb6;margin-top:1px}
+  .inner{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:8px}
+  .cost{align-self:flex-start;width:26px;height:26px;border-radius:50%;
+      background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);
+      display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
+  .inner .body{margin-top:auto}
+  .inner .nm2{font-size:12px;font-weight:600;color:#fff;line-height:1.3;text-shadow:0 1px 2px rgba(0,0,0,.8)}
+  .pips{display:flex;gap:3px;margin:5px 0 4px}
+  .pip{width:15px;height:15px;border-radius:3px;display:flex;align-items:center;justify-content:center;
+      font-size:9px;font-weight:700;color:#fff;border:1px solid rgba(255,255,255,.28)}
+  .pip.fire{background:var(--civ-fire)} .pip.water{background:var(--civ-water)}
+  .pip.nature{background:var(--civ-nature)} .pip.light{background:var(--civ-light)} .pip.dark{background:var(--civ-dark)}
+  .inner .ty2{font-size:9.5px;color:#cabfa6}
+  .noart{position:absolute;right:6px;bottom:6px;width:16px;height:16px;border:1px solid var(--ink3);
+      border-radius:3px;opacity:.7}
+  .noart::after{content:"";position:absolute;left:1px;right:1px;top:50%;height:1px;background:var(--ink3);
+      transform:rotate(-32deg)}
+  .broken{position:absolute;inset:0;background:#0c0a07;display:flex;align-items:center;justify-content:center}
+  .broken .glyph{width:40px;height:32px;border:1px solid #5a5246;border-radius:3px;position:relative}
+  .broken .glyph::before{content:"";position:absolute;left:50%;top:50%;width:13px;height:13px;border-radius:50%;
+      border:1px solid #6e6453;transform:translate(-50%,-50%)}
+  .broken .glyph::after{content:"";position:absolute;left:8px;right:8px;top:8px;border-top:1px solid #6e6453;transform:rotate(20deg)}
+  .facedown{background:
+      repeating-linear-gradient(45deg,#26201a 0 8px,#1b1610 8px 16px),
+      linear-gradient(160deg,#2a231a,#141009)!important;}
+  .facedown .inner{align-items:center;justify-content:center}
+  .fdmark{width:34px;height:34px;border:1px solid var(--line);border-radius:50%;
+      display:flex;align-items:center;justify-content:center}
+  .fdmark::after{content:"";width:14px;height:14px;border:1px solid var(--gold);border-radius:2px;transform:rotate(45deg)}
+  .fdtag{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:9.5px;color:var(--ink3)}
+  .card.sel{outline:2px solid var(--gold2);outline-offset:1px;
+      box-shadow:0 0 0 4px rgba(212,175,55,.22),0 14px 26px -10px rgba(0,0,0,.8)}
+  .selmark{position:absolute;left:0;top:0;width:0;height:0;border-style:solid;
+      border-width:18px 18px 0 0;border-color:var(--gold2) transparent transparent transparent}
+  .card.tap{transform:rotate(90deg) scale(.78);transform-origin:center}
+  .tapwrap{width:150px;height:210px;display:flex;align-items:center;justify-content:center}
+  .seatrow{display:flex;gap:34px;flex-wrap:wrap}
+  .seat{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink)}
+  .seatdot{width:14px;height:14px;border-radius:50%}
+  .seatdot.p1{background:#5b8fd6}
+  .seatdot.p2{background:transparent;border:2px solid #c98a5b}
+  .seatnote{font-size:11px;color:var(--ink3);margin-left:4px}
+  .barrow{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .iconbtn{width:32px;height:32px;border-radius:6px;border:1px solid var(--line);
+      background:rgba(255,255,255,.04);color:var(--ink);font-size:15px;line-height:1;
+      display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+  .iconbtn:hover{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,169,110,.12)}
+  .iconbtn.pressed{background:rgba(201,169,110,.16);border-color:var(--gold)}
+  .bx::before,.bx::after{content:"";position:absolute;left:50%;top:50%;width:14px;height:1.6px;background:var(--ink)}
+  .bx::before{transform:translate(-50%,-50%) rotate(45deg)} .bx::after{transform:translate(-50%,-50%) rotate(-45deg)}
+  .bm i{display:block;width:14px;height:1.6px;background:var(--ink);margin:2.5px 0}
+  .lbl{font-size:11px;color:var(--ink2);margin-left:2px}
+  .txtbtn{height:32px;padding:0 13px;border-radius:6px;border:1px solid var(--line);
+      background:rgba(255,255,255,.04);color:var(--ink);font-size:12px;cursor:pointer}
+  .txtbtn:hover{border-color:var(--gold)}
+  .note{font-size:11px;color:var(--ink3);line-height:1.7;margin-top:14px;max-width:880px;
+      border-left:2px solid var(--line);padding-left:12px}
+  .note b{color:var(--gold);font-weight:600}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:11px;color:var(--ink2);margin:0 0 4px}
+  .legend .ok{color:#86b06b} .legend .ng{color:#c97a6b}
+  .pwa{margin-top:8px;display:inline-block;border:1px dashed var(--line);border-radius:8px;padding:14px 16px;background:rgba(0,0,0,.18)}
+  .pwa .phone{width:300px;height:138px;border-radius:10px;border:1px solid rgba(0,0,0,.6);
+      background:linear-gradient(155deg,#2a2316,#15110b);position:relative;overflow:hidden;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+  .pwa .minicard{position:absolute;top:18px;width:54px;height:76px;border-radius:5px;overflow:hidden}
+  .pwa .c-a{left:18px;background:radial-gradient(120% 90% at 50% 18%,#7a2418,#1c0c08)}
+  .pwa .c-b{left:80px;background:radial-gradient(120% 90% at 50% 18%,#1d3a5e,#0a141f);outline:2px solid var(--gold2);outline-offset:1px;box-shadow:0 0 0 3px rgba(212,175,55,.22)}
+  .pwa .c-b .stri{position:absolute;left:0;top:0;border-style:solid;border-width:11px 11px 0 0;border-color:var(--gold2) transparent transparent}
+  .pwa .c-c{left:142px;background:repeating-linear-gradient(45deg,#26201a 0 6px,#1b1610 6px 12px)}
+  .pwa .mininm{position:absolute;left:2px;right:2px;bottom:2px;font-size:7px;color:#fff;text-align:center;text-shadow:0 1px 1px #000}
+  .pwa .pcap{font-size:10px;color:var(--ink3);margin-top:8px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>image-a11y ／ 画像欠損フォールバック＋アクセシビリティ</h1>
+  <p class="sub">DUEL TABLE 対戦卓・<b>失敗時だけ</b>発火する自前プレースホルダと、読み上げ可能なアイコンボタンの状態見本。新しい操作・自動判定は一切足さない（純表示＋読み上げ）。</p>
+
+  <div class="legend"><span class="ok">緑＝あるべき挙動</span><span class="ng">赤＝現状のNG（壊れアイコン残留）</span></div>
+
+  <div class="secttl">A. カード画像の状態別フォールバック</div>
+  <div class="grid">
+
+    <div class="cardslot">
+      <div class="card">
+        <div class="art-ok"></div>
+        <div class="scrim"><div class="nm">ボルシャック・ドラゴン</div><div class="ty">クリーチャー</div></div>
+      </div>
+      <div class="cap">正常（通常カード）<br>画像＋下部に名前/種別スクリム</div>
+    </div>
+
+    <div class="cardslot">
+      <div class="card fire">
+        <div class="inner">
+          <div class="cost">7</div>
+          <div class="body">
+            <div class="nm2">ボルシャック・ドラゴン</div>
+            <div class="pips"><span class="pip fire">火</span></div>
+            <div class="ty2">クリーチャー</div>
+          </div>
+        </div>
+        <div class="noart"></div>
+      </div>
+      <div class="cap"><em>404・通常カード</em><br>img消去→文明グラデ＋コスト/名前/文明pip/種別。右下に欠落マーク</div>
+    </div>
+
+    <div class="cardslot">
+      <div class="card water">
+        <div class="inner">
+          <div class="cost">5</div>
+          <div class="body">
+            <div class="nm2">アクア・サーファー</div>
+            <div class="pips"><span class="pip water">水</span></div>
+            <div class="ty2">クリーチャー</div>
+          </div>
+        </div>
+        <div class="noart"></div>
+      </div>
+      <div class="cap"><em>404・fullArt降格</em><br>画像オンリーを捨て<b>通常レイアウトに降格</b>。名前/種別が必ず出る</div>
+    </div>
+
+    <div class="cardslot">
+      <div class="card facedown">
+        <div class="inner"><div class="fdmark"></div></div>
+        <div class="fdtag">(非公開)</div>
+      </div>
+      <div class="cap"><em>404・裏面スリーブ</em><br>45度ストライプのみ。<b>表面情報は出さない</b>（非公開維持）</div>
+    </div>
+
+    <div class="cardslot">
+      <div class="card">
+        <div class="broken"><div class="glyph"></div></div>
+      </div>
+      <div class="cap" style="color:#c97a6b">現状のNG<br>onError無し→ブラウザの壊れアイコンだけ残る＝判別不能</div>
+    </div>
+
+  </div>
+
+  <div class="secttl">B. 状態表現（選択中・タップ／フォールバック中でも適用）</div>
+  <div class="grid">
+    <div class="cardslot">
+      <div class="card nature sel">
+        <div class="selmark"></div>
+        <div class="inner">
+          <div class="cost">4</div>
+          <div class="body"><div class="nm2">フェアリー・ライフ</div><div class="pips"><span class="pip nature">自</span></div><div class="ty2">呪文</div></div>
+        </div>
+        <div class="noart"></div>
+      </div>
+      <div class="cap">選択中＋画像欠落の重なり<br>金アウトライン＋リング＋左上三角（色＋形）</div>
+    </div>
+
+    <div class="cardslot">
+      <div class="tapwrap">
+        <div class="card fire tap">
+          <div class="inner">
+            <div class="cost">3</div>
+            <div class="body"><div class="nm2">コッコ・ルピア</div><div class="pips"><span class="pip fire">火</span></div><div class="ty2">クリーチャー</div></div>
+          </div>
+          <div class="noart"></div>
+        </div>
+      </div>
+      <div class="cap">タップ（回転＝形）＋画像欠落<br>状態は色に依存しない</div>
+    </div>
+  </div>
+
+  <div class="secttl">C. 自席／相手席ドット（色だけに頼らない＝形差）</div>
+  <div class="seatrow">
+    <div class="seat"><span class="seatdot p1"></span>自分（清水）<span class="seatnote">塗りつぶし円</span></div>
+    <div class="seat"><span class="seatdot p2"></span>相手<span class="seatnote">中抜き円</span></div>
+  </div>
+  <p class="note">グレースケールでも塗り／中抜きで自他が判別できる。隣にプレイヤー名テキストもあるため二重に冗長。</p>
+
+  <div class="secttl">D. アイコンだけのボタン（読み上げ名を持たせる）</div>
+  <div class="barrow">
+    <button class="iconbtn bx" aria-label="選択を解除"><span aria-hidden="true" style="opacity:0">x</span></button>
+    <span class="lbl">選択解除：aria-label「選択を解除」／グリフは aria-hidden の装飾</span>
+  </div>
+  <div class="barrow" style="margin-top:12px">
+    <button class="iconbtn bm pressed" aria-label="右パネルの表示を切り替え" aria-pressed="true"><i></i><i></i><i></i></button>
+    <span class="lbl">右パネル切替：aria-label＋aria-pressed が表示状態と一致（押下中＝金ハイライト）</span>
+  </div>
+  <div class="barrow" style="margin-top:12px">
+    <button class="txtbtn" aria-label="サイコロを振る">サイ</button>
+    <button class="txtbtn" aria-label="コイントス">コイン</button>
+    <button class="txtbtn" aria-label="じゃんけん">じゃんけん</button>
+    <span class="lbl">文字ラベルは既にあるが、略語を aria-label で補強（任意・推奨）</span>
+  </div>
+  <p class="note"><b>標準形</b>：アイコンだけのボタンは「中身＝aria-hidden の装飾グリフ＋ボタンに日本語 aria-label」。将来 ✕ ☰ を CSS シェイプ化しても aria-label は不変。</p>
+
+  <div class="secttl">E. 横向きPWA（スマホ横 844×390 想定）</div>
+  <div class="pwa">
+    <div class="phone">
+      <div class="minicard c-a"><div class="mininm">火カードA</div></div>
+      <div class="minicard c-b"><div class="stri"></div><div class="mininm">選択中</div></div>
+      <div class="minicard c-c"><div class="mininm" style="color:var(--ink3)">(非公開)</div></div>
+    </div>
+    <div class="pcap">.card のサイズ・当たり判定・D&D主導線を変えず、中身の描画だけ切替。タップ＝クリックのまま</div>
+  </div>
+
+  <p class="note" style="margin-top:26px">
+    <b>なぜこの設計か（3点）</b><br>
+    1. 手動卓を一切変えない：404退避と読み上げ名・形差の追加のみ。プレイ補助・自動判定・指示UIを足さない。<br>
+    2. 非公開維持：スリーブ失敗時も表面のカード名を出さず、ストライプ裏面に退避（相手の手札・シールドを露出しない）。<br>
+    3. Undo非汚染：artFailed はコンポーネントローカル useState（store/Undo/オンライン同期スナップショットに乗せない）純表示変更。
+  </p>
+</div>
+</body>
+</html>

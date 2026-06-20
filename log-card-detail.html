@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ログタブ 選択カード詳細の折りたたみ — 設計モック</title>
+<style>
+  :root{
+    --bg:#12151a; --bg-felt:#161b22; --surface:#1c222b; --surface-2:#232a34; --surface-3:#2b333f;
+    --line:rgba(255,255,255,.08); --line-strong:rgba(255,255,255,.16);
+    --text:#e8e4db; --muted:#9aa1ac; --faint:#646c78;
+    --accent:#c8a24a; --accent-soft:rgba(200,162,74,.16);
+    --civ-fire:#c8584e; --civ-water:#5a8fc7; --civ-light:#c8a24a; --civ-dark:#7d6f93;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(120% 90% at 50% -10%,#1b222c 0%,var(--bg) 55%),var(--bg);
+    color:var(--text);font-family:'Hiragino Kaku Gothic ProN','Yu Gothic',system-ui,sans-serif;padding:26px 18px 60px}
+  h1{font-size:16px;font-weight:600;letter-spacing:.04em;color:var(--muted);margin:0 0 4px}
+  .sub{font-size:12px;color:var(--faint);margin:0 0 22px}
+  .stage{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start}
+  .col-title{font-size:12px;color:var(--accent);letter-spacing:.08em;margin:0 0 10px;font-weight:600}
+  .col-note{font-size:11px;color:var(--faint);margin:0 0 12px;max-width:420px;line-height:1.6}
+
+  .rpanel{width:340px;background:var(--surface);border:1px solid var(--line);border-radius:8px;
+    display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px -22px rgba(0,0,0,.7),0 12px 28px -16px rgba(0,0,0,.6)}
+  .rtabs{display:flex;border-bottom:1px solid var(--line)}
+  .rtab{flex:1;text-align:center;font-size:12px;padding:9px 0;color:var(--muted);cursor:default;border-bottom:2px solid transparent}
+  .rtab.on{color:var(--text);border-bottom-color:var(--accent);background:linear-gradient(180deg,rgba(200,162,74,.06),transparent)}
+  .rbody{padding:10px;min-height:380px;position:relative;display:flex;flex-direction:column}
+
+  .log-search{width:100%;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:6px;
+    color:var(--text);font-size:12px;padding:6px 8px;margin-bottom:8px}
+  .log-search::placeholder{color:var(--faint)}
+  .filt{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .pill{font-size:11px;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:5px;padding:3px 8px;color:var(--muted)}
+  .pill-grp{display:flex;gap:4px}
+
+  /* 新規: 選択カード・サマリー帯 */
+  .sel-strip{display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:4px;margin-bottom:8px;position:relative;
+    box-shadow:inset 2px 0 0 var(--civ-fire)}
+  .sel-strip.water{box-shadow:inset 2px 0 0 var(--civ-water)}
+  .sel-strip.hidden{box-shadow:inset 2px 0 0 var(--faint)}
+  .sel-thumb{width:28px;height:39px;border-radius:3px;flex:0 0 auto;position:relative;overflow:hidden;
+    background:linear-gradient(160deg,#2a3140,#1a1f29);border:1px solid var(--line-strong)}
+  .sel-thumb .pip{position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;
+    font-size:8px;display:flex;align-items:center;justify-content:center;color:#15110a;font-weight:700;background:var(--civ-fire)}
+  .sel-thumb.water .pip{background:var(--civ-water);color:#0a1420}
+  .sel-thumb .nm{position:absolute;bottom:2px;left:2px;right:2px;font-size:6px;line-height:1.05;color:var(--text)}
+  .sel-thumb.back{background:repeating-linear-gradient(135deg,#202732 0 5px,#262d39 5px 10px)}
+  .sel-thumb.back .pip,.sel-thumb.back .nm{display:none}
+  .sel-thumb.back::after{content:'';position:absolute;inset:6px;border:1px solid var(--line-strong);border-radius:2px}
+  .sel-info{flex:1;min-width:0}
+  .sel-name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sel-name.dim{color:var(--muted);font-weight:500}
+  .sel-loc{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sel-detail{font-size:12px;color:var(--accent);border:1px solid rgba(200,162,74,.4);background:rgba(200,162,74,.08);
+    border-radius:5px;padding:3px 9px;white-space:nowrap;cursor:default}
+  .sel-x{width:22px;height:22px;border-radius:5px;border:1px solid var(--line-strong);background:var(--surface-3);
+    color:var(--muted);font-size:12px;display:flex;align-items:center;justify-content:center;cursor:default;flex:0 0 auto}
+
+  /* ログ本体(既存・主役) */
+  .log{display:flex;flex-direction:column;gap:2px;overflow:auto;flex:1}
+  .turnhdr{display:flex;align-items:center;justify-content:space-between;padding:5px 6px;margin-top:4px;
+    font-size:11px;color:var(--muted);border-radius:5px;position:sticky;top:0;background:var(--surface)}
+  .badge{font-size:10px;background:var(--surface-3);border-radius:999px;padding:1px 7px;color:var(--muted)}
+  .logitem{display:flex;gap:7px;align-items:baseline;padding:4px 6px;border-radius:5px;font-size:12px;line-height:1.35}
+  .logitem:hover{background:var(--surface-2)}
+  .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;align-self:flex-start;margin-top:5px}
+  .ltime{color:var(--faint);font-size:10px;flex:0 0 auto;font-variant-numeric:tabular-nums}
+  .lmsg{color:var(--text)}
+
+  .cap{position:relative;margin-top:14px;max-width:340px;font-size:11px;color:var(--faint);line-height:1.7;
+    border-left:2px solid var(--accent);padding-left:10px}
+  .cap b{color:var(--muted);font-weight:600}
+
+  .phone{width:520px;border:1px solid var(--line-strong);border-radius:14px;overflow:hidden;background:var(--bg-felt);
+    box-shadow:0 24px 60px -22px rgba(0,0,0,.7)}
+  .phone .head{height:6px;background:linear-gradient(90deg,transparent,var(--line-strong),transparent)}
+  .phone .grid{display:grid;grid-template-rows:1fr 44%;height:300px}
+  .board{position:relative;background:radial-gradient(80% 70% at 50% 30%,#1d2530,#14181f);padding:10px}
+  .board .turn{position:absolute;top:8px;left:10px;font-size:10px;color:var(--muted);background:var(--surface-2);
+    border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+  .board .turn .sd{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);margin-left:4px;vertical-align:middle}
+  .minicards{display:flex;gap:6px;margin-top:26px;flex-wrap:wrap}
+  .mc{width:30px;height:42px;border-radius:3px;background:linear-gradient(160deg,#2a3140,#1a1f29);border:1px solid var(--line-strong)}
+  .mc.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft),0 0 12px rgba(200,162,74,.35)}
+  .mc.tap{transform:rotate(12deg)}
+  .mc.back{background:repeating-linear-gradient(135deg,#202732 0 5px,#262d39 5px 10px)}
+  .bottompanel{border-top:1px solid var(--line);background:var(--surface);padding:8px;display:flex;flex-direction:column;min-height:0}
+  .bottompanel .logitem{font-size:11px;padding:3px 5px}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 0;font-size:10px;color:var(--faint)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .lg-dot{width:8px;height:8px;border-radius:50%}
+</style>
+</head>
+<body>
+  <h1>ログタブ — 選択カード詳細の折りたたみ（設計モック）</h1>
+  <p class="sub">DUEL TABLE / 暗い対戦卓トーン・実トークン準拠（--bg #12151a / --accent #c8a24a）。詳細はモーダルで開く。下ドロワーは作らない。</p>
+
+  <div class="stage">
+
+    <!-- PC: 選択あり・公開カード -->
+    <div>
+      <p class="col-title">PC（1280×800）右パネル・ログタブ｜選択中＝公開カード</p>
+      <p class="col-note">選択しても詳細はログに展開しない。上端に高さ56px以下の1行サマリー帯だけ出る。ログ本体は選択前と同じ行数が見える（押し下げ0px）。</p>
+      <div class="rpanel">
+        <div class="rtabs">
+          <div class="rtab on">ログ</div><div class="rtab">デッキ</div><div class="rtab">グラフ</div>
+        </div>
+        <div class="rbody">
+          <div class="sel-strip">
+            <div class="sel-thumb"><span class="pip">火</span><span class="nm">ボルメ</span></div>
+            <div class="sel-info">
+              <div class="sel-name">ボルメテウス・武者・ドラゴン</div>
+              <div class="sel-loc">バトルゾーン・タップ</div>
+            </div>
+            <div class="sel-detail">詳細 ▸</div>
+            <div class="sel-x">✕</div>
+          </div>
+
+          <input class="log-search" placeholder="ログを検索…">
+          <div class="filt">
+            <span class="pill">種別: すべて</span>
+            <span class="pill-grp"><span class="pill">すべて畳む</span><span class="pill">展開</span></span>
+          </div>
+
+          <div class="log">
+            <div class="turnhdr"><span>▾ ターン4</span><span class="badge">5</span></div>
+            <div class="logitem"><span class="dot" style="background:#c8a24a"></span><span class="ltime">02:41</span><span class="lmsg">ターン4開始（プレイヤー1）</span></div>
+            <div class="logitem"><span class="dot" style="background:#5a8fc7"></span><span class="ltime">02:43</span><span class="lmsg">プレイヤー1がドローした</span></div>
+            <div class="logitem"><span class="dot" style="background:#7d6f93"></span><span class="ltime">02:55</span><span class="lmsg">ボルメテウス・武者・ドラゴンをタップ</span></div>
+            <div class="logitem"><span class="dot" style="background:#c86a52"></span><span class="ltime">03:01</span><span class="lmsg">ボルメテウスで攻撃宣言</span></div>
+            <div class="logitem"><span class="dot" style="background:#c86a52"></span><span class="ltime">03:04</span><span class="lmsg">シールドを1枚ブレイク</span></div>
+            <div class="turnhdr"><span>▾ ターン3</span><span class="badge">4</span></div>
+            <div class="logitem"><span class="dot" style="background:#9aa1ac"></span><span class="ltime">02:10</span><span class="lmsg">手札からマナゾーンへ移動</span></div>
+            <div class="logitem"><span class="dot" style="background:#9aa1ac"></span><span class="ltime">02:18</span><span class="lmsg">クリーチャーをバトルゾーンに出した</span></div>
+            <div class="logitem"><span class="dot" style="background:#6fa472"></span><span class="ltime">02:22</span><span class="lmsg">状態タグ「召喚酔い」を付与</span></div>
+            <div class="logitem"><span class="dot" style="background:#8d7233"></span><span class="ltime">02:30</span><span class="lmsg">ターン3終了</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="cap"><b>なぜ：</b>ログは「直前に何が起きたか」を即読みする情報。詳細を同じスクロール面に積むとログが押し下げられるため、選択カードは<b>面積を食わない1行</b>に畳み、見たい時だけ詳細モーダルを開く。</p>
+    </div>
+
+    <!-- PC: 非公開カードを選択 -->
+    <div>
+      <p class="col-title">PC｜選択中＝相手の伏せ（非公開）</p>
+      <p class="col-note">相手の伏せカード・シールドを選択しても、帯にカード名・能力を出さない。「裏向きカード」＋現在地だけ。詳細モーダルも同様に伏せる（既存モーダルの漏れを同時に塞ぐ）。</p>
+      <div class="rpanel">
+        <div class="rtabs">
+          <div class="rtab on">ログ</div><div class="rtab">デッキ</div><div class="rtab">グラフ</div>
+        </div>
+        <div class="rbody">
+          <div class="sel-strip hidden">
+            <div class="sel-thumb back"></div>
+            <div class="sel-info">
+              <div class="sel-name dim">裏向きカード（非公開）</div>
+              <div class="sel-loc">シールド・プレイヤー2</div>
+            </div>
+            <div class="sel-detail">詳細 ▸</div>
+            <div class="sel-x">✕</div>
+          </div>
+
+          <input class="log-search" placeholder="ログを検索…">
+          <div class="filt">
+            <span class="pill">種別: すべて</span>
+            <span class="pill-grp"><span class="pill">すべて畳む</span><span class="pill">展開</span></span>
+          </div>
+          <div class="log">
+            <div class="turnhdr"><span>▾ ターン4</span><span class="badge">3</span></div>
+            <div class="logitem"><span class="dot" style="background:#c8a24a"></span><span class="ltime">02:41</span><span class="lmsg">ターン4開始（プレイヤー1）</span></div>
+            <div class="logitem"><span class="dot" style="background:#9aa1ac"></span><span class="ltime">02:48</span><span class="lmsg">プレイヤー2のシールドを選択（中身は非公開）</span></div>
+            <div class="logitem"><span class="dot" style="background:#5a8fc7"></span><span class="ltime">02:52</span><span class="lmsg">プレイヤー1がドローした</span></div>
+            <div class="turnhdr"><span>▾ ターン3</span><span class="badge">2</span></div>
+            <div class="logitem"><span class="dot" style="background:#9aa1ac"></span><span class="ltime">02:10</span><span class="lmsg">シールドゾーンに伏せて追加</span></div>
+            <div class="logitem"><span class="dot" style="background:#8d7233"></span><span class="ltime">02:30</span><span class="lmsg">ターン3終了</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="cap"><b>なぜ：</b>選択は相手の伏せカードでも可能なため、帯と詳細モーダルの<b>既定は伏せる</b>。判定は faceUp だけでなくゾーン可視性も見る。色でなく「裏向きカード」ラベルで表す。</p>
+    </div>
+
+    <!-- スマホ横向き -->
+    <div>
+      <p class="col-title">スマホ横向きPWA（844×390相当）</p>
+      <p class="col-note">横向きでは右パネル（ログ）が画面下端44vhに固定ドッキング。その狭い領域でも帯はパネル最上部の1行だけ。ログは下を全部使う。詳細はモーダルで全画面（閉じればログに戻る）。下ドロワーは作らない＝二重底回避。</p>
+      <div class="phone">
+        <div class="head"></div>
+        <div class="grid">
+          <div class="board">
+            <span class="turn">ターン 4<span class="sd"></span> プレイヤー1</span>
+            <div class="minicards">
+              <div class="mc"></div>
+              <div class="mc sel tap"></div>
+              <div class="mc"></div>
+              <div class="mc back"></div>
+              <div class="mc"></div>
+            </div>
+            <div class="legend">
+              <span><span class="lg-dot" style="background:var(--accent);box-shadow:0 0 6px var(--accent)"></span>選択中（枠＋発光）</span>
+              <span><span class="lg-dot" style="background:#262d39"></span>非公開（裏面ハッチ）</span>
+            </div>
+          </div>
+          <div class="bottompanel">
+            <div class="sel-strip" style="margin-bottom:6px">
+              <div class="sel-thumb"><span class="pip">火</span><span class="nm">ボルメ</span></div>
+              <div class="sel-info">
+                <div class="sel-name" style="font-size:12px">ボルメテウス・武者・ドラゴン</div>
+                <div class="sel-loc">バトルゾーン・タップ</div>
+              </div>
+              <div class="sel-detail">詳細 ▸</div>
+              <div class="sel-x">✕</div>
+            </div>
+            <div class="log">
+              <div class="logitem"><span class="dot" style="background:#7d6f93"></span><span class="ltime">02:55</span><span class="lmsg">ボルメをタップ</span></div>
+              <div class="logitem"><span class="dot" style="background:#c86a52"></span><span class="ltime">03:01</span><span class="lmsg">攻撃宣言</span></div>
+              <div class="logitem"><span class="dot" style="background:#c86a52"></span><span class="ltime">03:04</span><span class="lmsg">シールド1枚ブレイク</span></div>
+              <div class="logitem"><span class="dot" style="background:#9aa1ac"></span><span class="ltime">03:08</span><span class="lmsg">手札に加えた</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="cap"><b>なぜ：</b>theme.css の @media(max-width:880px) で .battle.show-panel が grid-template-rows:1fr 44vh となり、<b>ログは既に下端ドッキング</b>。ここに縦長詳細を乗せると2〜3行しか見えない。帯1行＋詳細モーダルでログ可読性を最優先。</p>
+    </div>
+
+  </div>
+</body>
+</html>

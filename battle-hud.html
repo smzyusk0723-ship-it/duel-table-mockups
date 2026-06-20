@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>battle-hud 再設計モック — DUEL TABLE</title>
+<style>
+  :root{
+    --bg:#12151a; --bg-felt:#161b22; --surface:#1c222b; --surface-2:#232a34; --surface-3:#2b333f;
+    --line:rgba(255,255,255,0.08); --line-strong:rgba(255,255,255,0.16);
+    --text:#e8e4db; --muted:#9aa1ac; --faint:#646c78;
+    --accent:#c8a24a; --accent-soft:rgba(200,162,74,0.16);
+    --self:#5a8fc7; --opp:#c86a52;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:
+      radial-gradient(120% 90% at 50% -10%, #1b222c 0%, var(--bg) 55%), var(--bg);
+    color:var(--text);font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  body{padding:26px 20px 60px;}
+  h1{font-size:17px;font-weight:600;letter-spacing:.04em;margin:0 0 4px;}
+  .lead{color:var(--muted);font-size:12.5px;margin:0 0 22px;max-width:880px;line-height:1.7;}
+  .lead b{color:var(--accent);font-weight:600;}
+  .secthead{font-size:11px;letter-spacing:.14em;color:var(--faint);margin:30px 0 10px;text-transform:uppercase;}
+  .frame-wrap{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;}
+  .device-label{font-size:11px;color:var(--muted);margin:0 0 8px;letter-spacing:.05em;}
+  .device-label b{color:var(--text);font-weight:600;}
+  .topbar{display:flex;align-items:center;gap:14px;padding:0 14px;height:50px;flex:0 0 auto;
+    background:linear-gradient(180deg,#1a2029,#161b22);border-bottom:1px solid var(--line);
+    box-shadow:0 1px 0 rgba(255,255,255,.03);position:relative;z-index:2;}
+  .subbar{display:flex;align-items:center;gap:10px;height:46px;padding:0 12px;flex:0 0 auto;
+    background:linear-gradient(180deg,#191e26,#151a21);border-bottom:1px solid var(--line);position:relative;z-index:2;}
+  .brand{font-weight:700;letter-spacing:.06em;font-size:14px;display:flex;align-items:center;gap:8px;}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);}
+  .spacer{flex:1;}
+  .btn{display:inline-flex;align-items:center;gap:6px;border-radius:7px;background:var(--surface-2);
+    color:var(--text);border:1px solid var(--line-strong);font-size:12px;line-height:1;padding:6px 10px;cursor:default;}
+  .btn--accent{background:linear-gradient(180deg,#d3ad53,#b8923f);color:#20180a;border-color:#8d7233;font-weight:600;}
+  .btn--ghost{background:transparent;border-color:transparent;color:var(--muted);}
+  .btn--on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
+  .kbd{font-size:9px;color:var(--faint);border:1px solid var(--line);border-radius:3px;padding:1px 3px;margin-left:5px;}
+  .btn--accent .kbd{color:#5a4413;border-color:rgba(0,0,0,.25);}
+  .iconbtn{width:30px;height:30px;border-radius:7px;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--muted);display:inline-flex;align-items:center;justify-content:center;position:relative;cursor:default;}
+  .iconbtn.is-more{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-soft);}
+  .sep{width:1px;height:22px;background:var(--line-strong);margin:0 2px;}
+  .turnbadge{display:inline-flex;align-items:center;gap:7px;padding:4px 11px;border-radius:999px;
+    background:var(--surface-2);border:1px solid var(--line);font-size:12px;white-space:nowrap;}
+  .turnbadge b{font-size:14px;color:var(--accent);}
+  .seatdot{width:9px;height:9px;border-radius:50%;}
+  .seatdot--p1{background:var(--self);}
+  .seatdot--p2{background:var(--opp);}
+  .turntri{width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;}
+  .turntri--self{border-left:7px solid var(--self);}
+  .turntri--opp{border-right:7px solid var(--opp);}
+  .turnname{font-weight:600;}
+  .turnrole{font-size:10px;color:var(--faint);margin-left:2px;}
+  .clock{display:inline-flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;cursor:default;
+    border:1px solid transparent;border-radius:7px;padding:3px 8px;}
+  .clock.is-btn{border-color:var(--line);background:var(--surface);}
+  .clock__label{font-size:11px;color:var(--faint);}
+  .clock__val{font-size:15px;font-weight:600;letter-spacing:.04em;color:var(--accent);}
+  .caret{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--faint);}
+  .ic-undo,.ic-redo{position:relative;width:15px;height:15px;}
+  .ic-undo::before{content:"";position:absolute;left:1px;top:3px;width:9px;height:7px;border:1.6px solid currentColor;
+    border-right-color:transparent;border-bottom-color:transparent;border-radius:8px 0 0 0;transform:rotate(-12deg);}
+  .ic-undo::after{content:"";position:absolute;left:0px;top:2px;width:0;height:0;border-top:3px solid transparent;
+    border-bottom:3px solid transparent;border-right:4px solid currentColor;}
+  .ic-redo::before{content:"";position:absolute;right:1px;top:3px;width:9px;height:7px;border:1.6px solid currentColor;
+    border-left-color:transparent;border-bottom-color:transparent;border-radius:0 8px 0 0;transform:rotate(12deg);}
+  .ic-redo::after{content:"";position:absolute;right:0px;top:2px;width:0;height:0;border-top:3px solid transparent;
+    border-bottom:3px solid transparent;border-left:4px solid currentColor;}
+  .ic-panel{width:15px;height:13px;border:1.6px solid currentColor;border-radius:2px;position:relative;}
+  .ic-panel::after{content:"";position:absolute;right:0;top:-1.6px;bottom:-1.6px;width:5px;background:currentColor;opacity:.55;border-radius:0 1px 1px 0;}
+  .ic-full{width:14px;height:14px;position:relative;}
+  .ic-full::before,.ic-full::after{content:"";position:absolute;width:5px;height:5px;}
+  .ic-full::before{left:0;top:0;border-left:1.6px solid currentColor;border-top:1.6px solid currentColor;}
+  .ic-full::after{right:0;bottom:0;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;}
+  .ic-more{display:flex;flex-direction:column;gap:2.5px;align-items:center;}
+  .ic-more i{width:3px;height:3px;border-radius:50%;background:currentColor;display:block;}
+  .ic-x{width:13px;height:13px;position:relative;}
+  .ic-x::before,.ic-x::after{content:"";position:absolute;left:50%;top:1px;width:1.6px;height:11px;background:currentColor;}
+  .ic-x::before{transform:rotate(45deg);} .ic-x::after{transform:rotate(-45deg);}
+  .device{border:1px solid var(--line-strong);border-radius:10px;overflow:hidden;
+    box-shadow:0 30px 60px -24px rgba(0,0,0,.7),0 14px 28px -16px rgba(0,0,0,.6);background:var(--bg);}
+  .board{position:relative;background:
+      radial-gradient(140% 120% at 50% 0%, #1c2530 0%, #141922 60%, #11151c 100%);}
+  .board::before{content:"";position:absolute;inset:0;opacity:.045;pointer-events:none;
+    background-image:repeating-linear-gradient(0deg,#fff 0 1px,transparent 1px 3px);}
+  .row{display:flex;gap:8px;align-items:center;padding:9px 14px;position:relative;z-index:1;}
+  .zlabel{font-size:9px;color:var(--faint);letter-spacing:.1em;width:46px;flex:0 0 auto;}
+  .card{width:42px;height:58px;border-radius:4px;border:1px solid var(--line-strong);
+    background:linear-gradient(160deg,#2e3947,#222b36);box-shadow:0 3px 7px -2px rgba(0,0,0,.6);flex:0 0 auto;position:relative;}
+  .card.back{background:repeating-linear-gradient(135deg,#241d12 0 5px,#2c2415 5px 10px);border-color:#3a2f1a;}
+  .card.tap{transform:rotate(90deg);margin:0 9px;}
+  .card.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 0 14px 2px var(--accent-soft);}
+  .card.lit{box-shadow:0 0 0 2px rgba(90,143,199,.7),0 0 16px 3px rgba(90,143,199,.35);border-color:var(--self);}
+  .pile{position:relative;width:42px;height:58px;flex:0 0 auto;}
+  .pile .card{position:absolute;top:0;left:0;}
+  .pile .card:nth-child(2){top:2px;left:2px;} .pile .card:nth-child(3){top:4px;left:4px;}
+  .midrule{display:flex;align-items:center;gap:10px;padding:4px 14px;color:var(--faint);font-size:9px;letter-spacing:.18em;}
+  .midrule .ln{flex:1;height:1px;background:var(--line);}
+  .dropzone{outline:1.5px dashed rgba(90,143,199,.55);outline-offset:-3px;border-radius:6px;background:rgba(90,143,199,.07);}
+  .selbar{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--surface-2);border-bottom:1px solid var(--line);font-size:12px;}
+  .selbar .nm{font-weight:700;} .selbar .zf{color:var(--faint);font-size:11px;}
+  .ctxmenu{position:absolute;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;
+    box-shadow:0 24px 48px -18px rgba(0,0,0,.8);padding:5px;min-width:210px;z-index:30;}
+  .ctxmenu__group{font-size:10px;color:var(--faint);padding:7px 10px 3px;letter-spacing:.06em;}
+  .ctxmenu__item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:5px;font-size:12.5px;color:var(--text);}
+  .ctxmenu__item .k{margin-left:auto;font-size:9px;color:var(--faint);border:1px solid var(--line);border-radius:3px;padding:1px 3px;}
+  .ctxmenu__item.danger{color:#e7b6ae;}
+  .ctxmenu__sep{height:1px;background:var(--line);margin:4px 6px;}
+  .ctxmenu .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-left:auto;}
+  .ctxmenu .seg span{padding:2px 7px;font-size:11px;color:var(--muted);border-right:1px solid var(--line);}
+  .ctxmenu .seg span:last-child{border-right:none;}
+  .ctxmenu .seg span.on{background:var(--accent-soft);color:var(--accent);}
+  .cap{position:absolute;font-size:10px;line-height:1.5;color:var(--accent);background:rgba(18,21,26,.92);
+    border:1px solid var(--accent-soft);border-left:2px solid var(--accent);border-radius:5px;padding:5px 8px;max-width:215px;z-index:40;}
+  .cap b{color:var(--text);font-weight:600;}
+  .ghostbar{display:flex;align-items:center;gap:8px;height:46px;padding:0 12px;background:#161b22cc;
+    border-bottom:1px dashed rgba(200,76,60,.4);opacity:.42;}
+  .strikecap{font-size:10px;color:var(--opp);letter-spacing:.04em;}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0 0;font-size:11px;color:var(--muted);}
+  .legend .sw{display:inline-flex;align-items:center;gap:6px;}
+  .legend .box{width:13px;height:13px;border-radius:3px;border:1px solid var(--line-strong);}
+</style>
+</head>
+<body>
+<h1>battle-hud 再設計 — 対戦中HUDの最小化</h1>
+<p class="lead">
+通常ナビ（50px）と対戦サブバー（46px）が縦に重なる<b>二重ナビ約96px</b>を、対戦中は<b>1段46pxのHUD</b>に畳む。
+常時見えるのは「毎ターン触るもの」だけ。保存・乱数・カードサイズ・配置・画面移動・新規対戦は右端の<b>その他メニュー（点3つ）</b>へ集約。
+手番は<b>三角の向き＋座席ドット＋ラベル文字</b>で色に依存せず示す。
+</p>
+<div class="secthead">PC（主体験） — 1280 × 800</div>
+<div class="device" style="width:1180px;position:relative;">
+  <div class="topbar" style="height:32px;opacity:.4;">
+    <span class="brand" style="font-size:12px;"><span class="dot"></span>DUEL TABLE</span>
+    <span class="btn btn--ghost">ホーム</span><span class="btn btn--on">対戦</span>
+    <span class="btn btn--ghost">2ピック</span><span class="btn btn--ghost">デッキ</span>
+    <span class="btn btn--ghost">オンライン</span><span class="spacer"></span>
+    <span class="btn btn--ghost">カードDB</span><span class="btn btn--ghost">管理</span><span class="btn btn--ghost">設定</span>
+  </div>
+  <div class="ghostbar">
+    <span class="btn">ドロー</span><span class="btn">全アンタップ</span><span class="btn">シャッフル</span>
+    <span class="btn btn--accent">ターン終了</span><span class="btn">サイ</span><span class="btn">コイン</span>
+    <span class="btn">じゃんけん</span><span class="iconbtn">三</span><span class="btn">新規</span>
+    <span class="spacer"></span><span class="strikecap">↑ 旧: 通常ナビ＋サブバーで縦96px消費（薄く参考表示）</span>
+  </div>
+  <div class="subbar">
+    <span class="brand" style="font-size:13px;"><span class="dot"></span>DUEL TABLE</span>
+    <span class="sep"></span>
+    <span class="turnbadge">
+      ターン <b>3</b>
+      <span class="turntri turntri--self"></span>
+      <span class="seatdot seatdot--p1"></span>
+      <span class="turnname">プレイヤー1</span><span class="turnrole">自分の番</span>
+    </span>
+    <span class="clock is-btn" title="クリックで対戦合計/P1/P2を展開">
+      <span class="clock__label">ターン経過</span><span class="clock__val">01:24</span><span class="caret"></span>
+    </span>
+    <span class="spacer"></span>
+    <span class="btn">ドロー<span class="kbd">D</span></span>
+    <span class="btn btn--accent">ターン終了<span class="kbd">E</span></span>
+    <span class="iconbtn" title="元に戻す (Ctrl+Z)"><span class="ic-undo"></span></span>
+    <span class="iconbtn" title="やり直す (Ctrl+Shift+Z)"><span class="ic-redo"></span></span>
+    <span class="sep"></span>
+    <span class="iconbtn btn--on" title="盤面パネル開閉"><span class="ic-panel"></span></span>
+    <span class="iconbtn" title="全画面 (F)"><span class="ic-full"></span></span>
+    <span class="iconbtn is-more" title="その他メニュー"><span class="ic-more"><i></i><i></i><i></i></span></span>
+  </div>
+  <div class="selbar">
+    <span class="nm">ボルメテウス・ホワイト・ドラゴン</span>
+    <span class="zf">バトルゾーン・タップ</span>
+    <span class="spacer"></span>
+    <span class="btn">アンタップ</span><span class="btn">攻撃</span><span class="btn">タグ</span>
+    <span class="btn">封印</span><span class="btn">重ね</span><span class="btn" style="background:linear-gradient(180deg,#2c3744,#232c37);color:var(--text);border-color:#3a4756;">詳細</span>
+    <span class="btn">操作 <span class="caret"></span></span>
+    <span class="iconbtn" title="選択解除"><span class="ic-x"></span></span>
+  </div>
+  <div class="board">
+    <div class="row"><span class="zlabel">相手 手札</span>
+      <span class="card back"></span><span class="card back"></span><span class="card back"></span><span class="card back"></span>
+      <span class="spacer"></span>
+      <span class="zlabel" style="width:auto;">山札</span><span class="pile"><span class="card back"></span><span class="card back"></span><span class="card back"></span></span>
+      <span class="zlabel" style="width:auto;">墓地</span><span class="pile"><span class="card"></span><span class="card"></span></span>
+    </div>
+    <div class="row"><span class="zlabel">相手 シールド</span>
+      <span class="card back"></span><span class="card back"></span><span class="card back"></span><span class="card back"></span><span class="card back"></span>
+      <span class="spacer"></span>
+      <span class="zlabel" style="width:auto;">マナ</span><span class="card"></span><span class="card tap"></span><span class="card"></span>
+    </div>
+    <div class="row"><span class="zlabel">相手 バトル</span>
+      <span class="card"></span><span class="card tap"></span>
+    </div>
+    <div class="midrule"><span class="ln"></span>盤面中央<span class="ln"></span></div>
+    <div class="row"><span class="zlabel">自分 バトル</span>
+      <span class="card sel"></span><span class="card"></span><span class="card dropzone" style="background:transparent;"></span>
+      <span class="spacer"></span>
+      <span class="zlabel" style="width:auto;">マナ</span><span class="card"></span><span class="card"></span><span class="card tap"></span>
+    </div>
+    <div class="row"><span class="zlabel">自分 シールド</span>
+      <span class="card back"></span><span class="card back"></span><span class="card back"></span><span class="card back"></span><span class="card back"></span>
+      <span class="spacer"></span>
+      <span class="zlabel" style="width:auto;">山札</span><span class="pile"><span class="card back"></span><span class="card back"></span><span class="card back"></span></span>
+    </div>
+    <div class="row" style="padding-bottom:14px;"><span class="zlabel">自分 手札</span>
+      <span class="card"></span><span class="card"></span><span class="card lit"></span><span class="card"></span><span class="card"></span>
+    </div>
+    <div class="ctxmenu" style="right:14px;top:-6px;">
+      <div class="ctxmenu__group">卓操作</div>
+      <div class="ctxmenu__item">全アンタップ<span class="k">A</span></div>
+      <div class="ctxmenu__item">シャッフル<span class="k">S</span></div>
+      <div class="ctxmenu__item">サイコロ</div>
+      <div class="ctxmenu__item">コイントス</div>
+      <div class="ctxmenu__item">じゃんけん</div>
+      <div class="ctxmenu__sep"></div>
+      <div class="ctxmenu__group">表示・保存（保存系はMac本体に在る場合のみ）</div>
+      <div class="ctxmenu__item">カードサイズ<span class="seg"><span>小</span><span class="on">中</span><span>大</span></span></div>
+      <div class="ctxmenu__item">配置<span class="seg"><span class="on">縦</span><span>横</span></span></div>
+      <div class="ctxmenu__item" style="color:var(--muted);">盤面を保存</div>
+      <div class="ctxmenu__item" style="color:var(--muted);">リプレイを保存</div>
+      <div class="ctxmenu__sep"></div>
+      <div class="ctxmenu__group">移動・終了</div>
+      <div class="ctxmenu__item">ホームへ戻る</div>
+      <div class="ctxmenu__item">2ピック / デッキ / オンライン</div>
+      <div class="ctxmenu__item">カードDB / 管理</div>
+      <div class="ctxmenu__item">設定</div>
+      <div class="ctxmenu__item danger">新規対戦（確認あり）</div>
+    </div>
+  </div>
+  <div class="cap" style="left:14px;top:86px;">
+    <b>手番は色非依存</b><br>向き三角＋座席ドット＋「自分の番」文字。モノクロでも誰の番か判る。
+  </div>
+  <div class="cap" style="left:470px;top:86px;">
+    <b>常時は8点だけ</b><br>ドロー/ターン終了/戻す/やり直す/パネル/全画面/メニュー＋手番・経過表示。
+  </div>
+  <div class="cap" style="right:250px;top:300px;">
+    <b>残りは点3つの中へ</b><br>乱数・保存・サイズ・配置・移動・新規を3群に整理。第二の管理パネル化を区切り線で防ぐ。
+  </div>
+  <div class="cap" style="left:118px;top:540px;">
+    <b>主導線はD&D</b><br>選択カード=金枠、ドロップ可能ゾーン=水色発光。HUDにドロップゾーンは置かない。
+  </div>
+</div>
+<div class="secthead">横向きPWA（サブ体験・縦が最重要） — 844 × 390 相当</div>
+<div class="frame-wrap">
+  <div>
+    <p class="device-label"><b>新</b>：1段HUD＋パネルは下40%にドロワー（@media max-width:880px の既存挙動踏襲）</p>
+    <div class="device" style="width:560px;position:relative;">
+      <div class="subbar" style="gap:7px;padding:0 9px;">
+        <span class="turnbadge" style="padding:3px 8px;">
+          T<b>3</b><span class="turntri turntri--self"></span><span class="seatdot seatdot--p1"></span><span class="turnrole">自分</span>
+        </span>
+        <span class="clock is-btn" style="padding:2px 6px;"><span class="clock__val" style="font-size:13px;">01:24</span><span class="caret"></span></span>
+        <span class="spacer"></span>
+        <span class="btn" style="padding:5px 8px;">ドロー</span>
+        <span class="btn btn--accent" style="padding:5px 8px;">終了</span>
+        <span class="iconbtn" style="width:34px;height:34px;"><span class="ic-undo"></span></span>
+        <span class="iconbtn" style="width:34px;height:34px;"><span class="ic-redo"></span></span>
+        <span class="iconbtn btn--on" style="width:34px;height:34px;"><span class="ic-panel"></span></span>
+        <span class="iconbtn is-more" style="width:34px;height:34px;"><span class="ic-more"><i></i><i></i><i></i></span></span>
+      </div>
+      <div class="board" style="min-height:212px;">
+        <div class="row" style="padding:6px 10px;"><span class="zlabel" style="width:34px;">相手S</span>
+          <span class="card back" style="width:30px;height:42px;"></span><span class="card back" style="width:30px;height:42px;"></span><span class="card back" style="width:30px;height:42px;"></span>
+          <span class="spacer"></span><span class="pile" style="width:30px;height:42px;"><span class="card back" style="width:30px;height:42px;"></span><span class="card back" style="width:30px;height:42px;"></span></span>
+        </div>
+        <div class="row" style="padding:6px 10px;"><span class="zlabel" style="width:34px;">相手BZ</span>
+          <span class="card" style="width:30px;height:42px;"></span><span class="card" style="width:30px;height:42px;transform:rotate(90deg);margin:0 7px;"></span>
+        </div>
+        <div class="midrule" style="padding:2px 10px;"><span class="ln"></span>中央<span class="ln"></span></div>
+        <div class="row" style="padding:6px 10px;"><span class="zlabel" style="width:34px;">自分BZ</span>
+          <span class="card sel" style="width:30px;height:42px;"></span><span class="card" style="width:30px;height:42px;"></span>
+          <span class="spacer"></span><span class="zlabel" style="width:auto;">マナ</span><span class="card" style="width:30px;height:42px;"></span><span class="card" style="width:30px;height:42px;"></span>
+        </div>
+        <div class="row" style="padding:6px 10px 10px;"><span class="zlabel" style="width:34px;">手札</span>
+          <span class="card lit" style="width:30px;height:42px;"></span><span class="card" style="width:30px;height:42px;"></span><span class="card" style="width:30px;height:42px;"></span><span class="card" style="width:30px;height:42px;"></span>
+        </div>
+      </div>
+      <div style="height:78px;background:var(--surface);border-top:1px solid var(--line);padding:7px 10px;">
+        <div style="display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:6px;">
+          <span style="padding:5px 12px;font-size:11px;color:var(--accent);border-bottom:2px solid var(--accent);">ログ</span>
+          <span style="padding:5px 12px;font-size:11px;color:var(--muted);">デッキ</span>
+          <span style="padding:5px 12px;font-size:11px;color:var(--muted);">チャット</span>
+        </div>
+        <div style="font-size:10px;color:var(--muted);line-height:1.6;">ターン3 開始 — プレイヤー1（2枚アンタップ）<br>プレイヤー1 が1枚引いた（残り山札28）</div>
+      </div>
+      <div class="cap" style="left:8px;top:50px;">
+        <b>縦を最優先</b><br>50px通常ナビを丸ごと畳む。390px中の約25%を盤面へ返す。
+      </div>
+    </div>
+  </div>
+  <div>
+    <p class="device-label"><b>旧</b>：通常ナビ50 ＋ サブバー46 ＝ 96pxが盤面の上に常駐</p>
+    <div class="device" style="width:300px;position:relative;opacity:.85;">
+      <div class="topbar" style="height:36px;gap:6px;padding:0 8px;overflow-x:auto;">
+        <span class="brand" style="font-size:11px;"><span class="dot"></span>DUEL</span>
+        <span class="btn btn--ghost" style="padding:4px 6px;">ホーム</span><span class="btn btn--on" style="padding:4px 6px;">対戦</span>
+        <span class="btn btn--ghost" style="padding:4px 6px;">ピック</span><span class="btn btn--ghost" style="padding:4px 6px;">設定</span>
+      </div>
+      <div class="ghostbar" style="height:34px;gap:5px;overflow-x:auto;">
+        <span class="btn" style="padding:4px 6px;white-space:nowrap;">ドロー</span><span class="btn" style="padding:4px 6px;white-space:nowrap;">全アンタップ</span>
+        <span class="btn" style="padding:4px 6px;white-space:nowrap;">シャッフル</span><span class="btn btn--accent" style="padding:4px 6px;white-space:nowrap;">終了</span>
+        <span class="btn" style="padding:4px 6px;">サイ</span><span class="btn" style="padding:4px 6px;">コイン</span>
+      </div>
+      <div class="board" style="min-height:150px;">
+        <div class="row" style="padding:5px 8px;"><span class="card back" style="width:26px;height:36px;"></span><span class="card back" style="width:26px;height:36px;"></span></div>
+        <div class="midrule" style="padding:2px 8px;"><span class="ln"></span>中央<span class="ln"></span></div>
+        <div class="row" style="padding:5px 8px;"><span class="card" style="width:26px;height:36px;"></span></div>
+      </div>
+      <div class="cap" style="left:8px;top:42px;background:rgba(18,21,26,.95);border-left-color:var(--opp);color:#e7b6ae;border-color:rgba(200,76,60,.3);">
+        2段でスクロールも発生。盤面がさらに潰れる。
+      </div>
+    </div>
+  </div>
+</div>
+<div class="legend">
+  <span class="sw"><span class="box" style="border-color:var(--accent);box-shadow:0 0 8px var(--accent-soft);"></span>選択中カード（金枠）</span>
+  <span class="sw"><span class="box" style="border-color:var(--self);box-shadow:0 0 8px rgba(90,143,199,.5);"></span>ドロップ可能ゾーン（水色発光）</span>
+  <span class="sw"><span class="box" style="background:var(--self);"></span>座席P1（自分）</span>
+  <span class="sw"><span class="box" style="background:var(--opp);"></span>座席P2（相手）</span>
+  <span class="sw"><span class="box" style="border-color:var(--accent);background:var(--accent-soft);"></span>点3つ＝残り機能の入口（金縁で強調）</span>
+</div>
+</body>
+</html>

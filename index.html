@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DUEL TABLE 設計モックアップ</title>
+<style>
+:root{--bg:#16130e;--bg2:#211c14;--surf:#262019;--line:rgba(201,169,110,.22);--gold:#c9a96e;--gold2:#d4af37;--t:#e8e0d2;--t2:#b6ab97;--t3:#8a8170}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:radial-gradient(ellipse at 50% 0%,#241d13 0%,var(--bg) 60%),var(--bg);color:var(--t);font-family:"Hiragino Mincho ProN","Yu Mincho",serif;line-height:1.8;padding:0 0 80px;min-height:100vh}
+.wrap{max-width:1100px;margin:0 auto;padding:0 22px}
+header{padding:64px 0 28px;border-bottom:1px solid var(--line)}
+.kicker{letter-spacing:.36em;font-size:11px;color:var(--gold);text-transform:uppercase}
+h1{font-size:30px;font-weight:500;margin:14px 0 8px;letter-spacing:.04em}
+.lead{color:var(--t2);max-width:760px;font-size:15px}
+.note{margin-top:18px;padding:14px 16px;border:1px solid var(--line);border-left:2px solid var(--gold);background:rgba(201,169,110,.05);color:var(--t2);font-size:13px;border-radius:2px}
+h2{font-size:14px;font-weight:500;color:var(--t3);letter-spacing:.2em;margin:46px 0 16px;text-transform:uppercase}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.card{display:block;text-decoration:none;color:inherit;background:linear-gradient(180deg,var(--surf),var(--bg2));border:1px solid var(--line);border-radius:4px;padding:20px;transition:transform .35s cubic-bezier(.16,1,.3,1),box-shadow .35s,border-color .35s;box-shadow:0 18px 36px -22px rgba(0,0,0,.7)}
+.card:hover{transform:translateY(-3px);border-color:rgba(212,175,55,.5);box-shadow:0 28px 52px -22px rgba(0,0,0,.8),0 0 0 1px rgba(212,175,55,.25)}
+.card__title{font-size:16px;margin-bottom:8px;color:var(--t)}
+.card__sum{font-size:13px;color:var(--t2);line-height:1.7;font-family:system-ui,"Hiragino Kaku Gothic ProN",sans-serif}
+.card__go{margin-top:14px;font-size:11px;letter-spacing:.18em;color:var(--gold);text-transform:uppercase}
+ul.specs{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+ul.specs li{background:var(--surf);border:1px solid var(--line);border-radius:3px;padding:12px 15px;font-size:13px;font-family:system-ui,sans-serif;color:var(--t2)}
+ul.specs li b{display:block;color:var(--t);font-family:"Hiragino Mincho ProN",serif;margin-bottom:3px}
+footer{margin-top:50px;color:var(--t3);font-size:12px;font-family:system-ui,sans-serif}
+</style></head>
+<body><div class="wrap">
+<header>
+  <div class="kicker">DUEL TABLE — Design Mockups</div>
+  <h1>対戦卓UX 改修 設計モックアップ</h1>
+  <p class="lead">確定済みUX課題ごとの「あるべき画面」を設計確定版として可視化したものです。実物の対戦アプリではなく、Mac側で実装する際の設計見本です。</p>
+  <div class="note">これらは設計見本（モックアップ）であって動作するツールではありません。実装は本物のコードがあるMac側で行います。実装手順の正は同梱のプレイブック（20260620_実装プレイブック_設計.md）を参照してください。</div>
+</header>
+<h2>画面モックアップ（10件）</h2>
+<div class="grid">
+    <a class="card" href="./battle-hud.html">
+      <div class="card__title">対戦中HUDの再設計（通常ナビ格納・常時表示を最小化）</div>
+      <div class="card__sum">対戦中だけ通常ナビ（50px）を畳み、サブバーを「毎ターン触る8点」だけの1段HUDに絞る。残り（乱数・配置・カードサイズ・画面移動・新規対戦＋Mac本体にあれば保存系）は右端の点3つメニューへ集約。横向きPWAで縦を最優先確保でき、卓が散らからない。</div>
+      <div class="card__go">モックアップを開く</div>
+    </a>
+    <a class="card" href="./dnd.html">
+      <div class="card__title">PC版ドラッグ&amp;ドロップ（手動卓の中核）</div>
+      <div class="card__sum">手札・盤面のカードを「つまんで離す」で移動できるようにし、ドロップ可能ゾーンだけ金縁＋発光＋「ここへ↓」ラベルで提示する。右クリック/メニューは保険として全部残す。確定は既存moveCardを1回呼ぶだけにして、Mac本体側のUndo履歴・ログ・オンライン同期にそのまま乗せる。物理カードをつまむ感触をPCの主導線にすることで手動卓の操作感が一段上がる。</div>
+      <div class="card__go">モックアップを開く</div>
+    </a>
+    <a class="card" href="./hidden-info.html">
+      <div class="card__title">非公開情報モーダル（山札/シールド/超GR）の所有者出し分け</div>
+      <div class="card__sum">ZoneListModal の faceDown ハードコードを「閲覧者の席 × ゾーンの非公開フラグ × 公開状態」で出し分けるよう置換し、自分の山札/シールド/超GRは「自分だけ見る」、相手のそれは公開札のみ表に。誤公開を防ぐため公開は明示操作のみ・受信側で正体を潰すので画面とデータの両方で漏れない。</div>
+      <div class="card__go">モックアップを開く</div>
+    </a>
+    <a class="card" href="./landscape-pwa.html">
+      <div class="card__title">横向きPWA専用レイアウト</div>
+      <div class="card__sum">端末を横に倒すと自動で横向き専用卓に切替（手動上書き可）。盤面と自分の手札を主役にし、主要操作を親指の届く最下部の固定ドック＋選択時の層Bに集約。ログ/デッキは下ドロワー化、safe-area・誤スクロールも対処。新しいゲーム操作は足さず既存storeアクションの再配置のみ＝Undoにそのまま乗る。</div>
+      <div class="card__go">モックアップを開く</div>
+    </a>
+    <a class="card" href="./twopick.html">
+      <div class="card__title">2ピックのA/B同時比較＋イベント体験＋導線分離</div>
+      <div class="card__sum">横向きPWAでA案2枚・B案2枚を必ず同時表示し（狭ければスワイプ閲覧＋画面下固定の選択ボタンに自動切替）、選択を「金発光→薄れ→履歴帯へ流れて積む」1モーションのイベントにする。押し間違えは pick.history を逆再生する「1つ戻す」で対応し、ホーム/ナビの導線も即開始と設定に割る。比較が一目で済み、選んだ手応えと積み上がりが見える。</div>
+      <div class="card__go">モックアップを開く</div>
+    </a>
+    <a class="card" href="./design-hierarchy.html">
+      <div class="card__title">明度階層とプレイマット物体化</div>
+      <div class="card__sum">盤面に3段の明度階層（選択/ドラッグ中=最前面・手番領域/受け入れ可ゾーン=中景・非手番側/ログ=背景）を作り、山札/墓地/マナ/シールドをCSSで物体化する。移動はPCのドラッグ&amp;ドロップを主導線に足すが、実体は既存 moveCard を呼ぶだけ＝Undo・オンライン同期に自動で乗り、自動判定は一切足さない。</div>
+      <div class="card__go">モックアップを開く</div>
+    </a>
+    <a class="card" href="./move-feedback.html">
+      <div class="card__title">カード移動後の視覚フィードバック</div>
+      <div class="card__sum">moveCard 1か所から「ゾーン発光・カードが飛ぶ・枚数の一瞬拡大・行き先トースト」の4層を同時発火させ、最頻操作（手札→マナ等）に物理的な手応えを足す。状態は正しく変わるが視界で何が起きたか分からない現状を解消する。</div>
+      <div class="card__go">モックアップを開く</div>
+    </a>
+    <a class="card" href="./log-card-detail.html">
+      <div class="card__title">ログタブでの選択カード詳細の折りたたみ</div>
+      <div class="card__sum">ログタブを開いている間、選択カードの詳細を「縦長の詳細」ではなく上端の高さ56px以下の1行サマリー帯に畳み、ログの可読行数を選択前と同じに保つ。詳細は既存の詳細モーダルで見る（横向きPWAは下端44vhパネル内でログを潰さない）。</div>
+      <div class="card__go">モックアップを開く</div>
+    </a>
+    <a class="card" href="./leave-confirm.html">
+      <div class="card__title">対戦中の離脱に確認</div>
+      <div class="card__sum">対戦が進行中のときだけ、対戦画面から出る全導線（ナビ・ロゴ・カードDB・管理、そして見落とされていた「新規対戦」上書き）に確認を1枚はさむ。未開始・初手なら無確認で通し、邪魔しない。既存のConfirmDialogを再利用し新UIは作らない。</div>
+      <div class="card__go">モックアップを開く</div>
+    </a>
+    <a class="card" href="./image-a11y.html">
+      <div class="card__title">画像欠損フォールバック＋アクセシビリティ</div>
+      <div class="card__sum">カード画像が404しても「何のカードか」が必ず分かる自前プレースホルダに退避し、アイコンだけのボタンに日本語の読み上げ名を持たせる。手番・自他・選択は色だけに頼らず形でも判別できるようにする純表示＋読み上げ改善。新操作・自動判定・非公開露出はゼロ。</div>
+      <div class="card__go">モックアップを開く</div>
+    </a>
+</div>
+<h2>仕様のみ（モックアップなし）</h2>
+<ul class="specs">
+      <li><b>ゾーン別の操作出し分け＋文脈メニュー肥大化の抑制</b><span>カード操作メニュー／アクションバーを「そのゾーンで物理的に意味がある主操作3〜6個」だけ最上段に出し、残り全機能は「移動▸」「特殊▸」に畳む。全機能は1つも消さず、初手で見える数だけ圧縮して横向きPWAで主操作が埋もれないようにする。</span></li>
+      <li><b>「盤面保存」と「盤面」タブの誤タップ解消</b><span>高頻度・無害の「ビュー切替（盤面/手札/ログ…）」と低頻度・確定の「盤面保存（モーダルを開く）」を、別グループ・別位置・別見た目に分離し、横向きPWAの最狭幅でもヒット領域が重ならないようにする。誤タップでスナップショット保存モーダルが不意に開く事故をゼロにする。</span></li>
+</ul>
+<footer>生成: 2026-06-20 / 多エージェント設計ワークフロー（12課題）</footer>
+</div></body></html>

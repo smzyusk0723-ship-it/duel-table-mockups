@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>横向きPWA専用レイアウト — DUEL TABLE 設計モック</title>
+<style>
+  :root{
+    --bg:#12151a; --bg-felt:#161b22; --surface:#1c222b; --surface-2:#232a34; --surface-3:#2b333f;
+    --line:rgba(255,255,255,.08); --line-strong:rgba(255,255,255,.16);
+    --text:#e8e4db; --muted:#9aa1ac; --faint:#646c78;
+    --accent:#c8a24a; --accent-soft:rgba(200,162,74,.16);
+    --self:#5a8fc7; --opp:#c86a52; --ok:#6fa472; --err:#c8584e;
+    --radius:6px; --radius-lg:10px;
+    --shadow-card:0 2px 4px rgba(0,0,0,.45),0 6px 14px rgba(0,0,0,.35);
+    --shadow-pop:0 10px 30px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.5);
+    --font:-apple-system,BlinkMacSystemFont,'Hiragino Kaku Gothic ProN','Noto Sans JP','Yu Gothic',Meiryo,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:var(--font); color:var(--text); font-size:14px;
+    background:radial-gradient(120% 90% at 50% -10%,#1b222c 0%,var(--bg) 55%),var(--bg);
+    -webkit-font-smoothing:antialiased; padding:26px 18px 60px;
+  }
+  h1{font-size:20px; font-weight:800; letter-spacing:.02em; margin:0 0 4px;}
+  .lead{color:var(--muted); font-size:13px; max-width:1080px; line-height:1.7; margin:0 0 22px;}
+  .lead b{color:var(--accent); font-weight:700;}
+  .secttl{font-size:12px; color:var(--faint); letter-spacing:.14em; text-transform:uppercase; margin:30px 0 12px; border-bottom:1px solid var(--line); padding-bottom:6px;}
+  .frames{display:flex; gap:26px; flex-wrap:wrap; align-items:flex-start;}
+  .framewrap{display:flex; flex-direction:column; gap:8px;}
+  .frametag{font-size:11px; color:var(--muted); letter-spacing:.06em;}
+  .frametag b{color:var(--text);}
+
+  /* プレイマット質感の枠 */
+  .device{
+    position:relative; border-radius:14px; overflow:hidden;
+    background:radial-gradient(120% 120% at 50% 0%,#1b222c 0%,#13171d 60%,#0f1217 100%);
+    box-shadow:var(--shadow-pop), inset 0 0 0 1px var(--line-strong);
+  }
+  .device::after{ /* 微ノイズ＝フェルト質感 */
+    content:""; position:absolute; inset:0; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+    background-image:repeating-linear-gradient(0deg,#fff 0 1px,transparent 1px 2px),repeating-linear-gradient(90deg,#fff 0 1px,transparent 1px 2px);
+    background-size:3px 3px;
+  }
+
+  /* ===== 横持ちスマホ 844x390 ===== */
+  .phone{width:844px; height:390px; display:grid; grid-template-rows:22px 1fr auto; }
+
+  /* safe-area 帯（ノッチ/ホームインジケータの可視化） */
+  .safe-l,.safe-r{position:absolute; top:0; bottom:0; width:22px; z-index:30; pointer-events:none;
+    background:linear-gradient(90deg,rgba(0,0,0,.42),transparent); }
+  .safe-r{right:0; transform:scaleX(-1);}
+  .safe-note{position:absolute; z-index:31; font-size:8px; color:var(--faint); letter-spacing:.04em;
+    writing-mode:vertical-rl; top:50%; transform:translateY(-50%);}
+  .safe-note.l{left:4px;} .safe-note.r{right:4px;}
+
+  /* 上：薄い情報バー（LandscapeInfoBar） */
+  .infobar{display:flex; align-items:center; gap:12px; padding:0 30px; background:rgba(0,0,0,.30); border-bottom:1px solid var(--line); font-size:11px;}
+  .turnbadge{display:inline-flex; align-items:center; gap:6px; color:var(--text); font-weight:700;}
+  .turnbadge b{color:var(--accent);}
+  .seatdot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+  .seatdot--p1{background:var(--self);} .seatdot--p2{background:var(--opp);}
+  .infobar .pill{font-size:10px; padding:1px 8px; border-radius:999px; border:1px solid var(--accent); color:var(--accent);}
+  .infobar .clk{margin-left:auto; color:var(--faint); font-variant-numeric:tabular-nums;}
+  .infobar .clk b{color:var(--muted);}
+
+  /* 中：盤面（上=相手 / 中央線 / 下=自分） */
+  .board{position:relative; overflow:hidden; padding:6px 30px; display:flex; flex-direction:column; gap:5px; min-height:0;}
+  .side{border-radius:var(--radius); padding:5px 8px; border:1px solid var(--line); position:relative; flex:0 0 auto;}
+  .side--opp{background:linear-gradient(180deg,rgba(200,106,82,.07),transparent 70%); border-top:2px solid rgba(200,106,82,.4);}
+  .side--self{background:linear-gradient(0deg,rgba(90,143,199,.07),transparent 70%); border-bottom:2px solid rgba(90,143,199,.45);}
+  /* 手番ハイライト＝金枠＋発光（色だけに頼らずラベルも併記） */
+  .side.is-active{box-shadow:inset 0 0 0 1px var(--accent), 0 0 14px -2px rgba(200,162,74,.45);}
+  .sidehead{display:flex; align-items:center; gap:8px; font-size:11px; margin-bottom:3px;}
+  .sidename{font-weight:700;}
+  .active-pin{font-size:9px; color:var(--accent); border:1px solid var(--accent); border-radius:999px; padding:0 6px;}
+  .sidehead .clk{margin-left:auto; color:var(--faint); font-size:10px;}
+
+  .sidebody{display:flex; gap:8px; align-items:stretch;}
+  .rail{display:flex; gap:5px; flex:0 0 auto;}
+  .zchip{min-width:50px; padding:3px 5px; border-radius:5px; background:var(--surface); border:1px solid var(--line); display:flex; flex-direction:column; gap:1px;}
+  .zchip .zn{font-size:8px; color:var(--muted);}
+  .zchip .zc{font-size:14px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums;}
+  /* 山札＝束の物体感 */
+  .zchip--deck{background:linear-gradient(180deg,var(--surface-2),var(--surface)); box-shadow:1px 1px 0 #2b333f,2px 2px 0 #232a34;}
+  .main{flex:1; min-width:0; display:flex; gap:6px;}
+  .bz{flex:1; min-width:0; padding:4px 6px; border-radius:5px; background:rgba(0,0,0,.18); border:1px dashed var(--line);}
+  .bz .lab{font-size:8px; color:var(--faint); letter-spacing:.08em; margin-bottom:3px;}
+  .bzcards{display:flex; gap:6px; flex-wrap:nowrap;}
+
+  /* シールド＝伏せ5枚 */
+  .shields{flex:0 0 auto;}
+  .shields .lab{font-size:8px; color:var(--faint); margin-bottom:3px;}
+  .shieldrow{display:flex; gap:3px;}
+  .shield{width:13px; height:20px; border-radius:2px; border:1px solid var(--line-strong);
+    background:repeating-linear-gradient(45deg,#2a323d,#2a323d 3px,#222933 3px,#222933 6px);}
+
+  /* カード */
+  .card{width:30px; height:42px; border-radius:3px; position:relative; box-shadow:var(--shadow-card); flex:0 0 auto;
+    background:linear-gradient(160deg,#2d3540,#222932); border:1px solid var(--line-strong); font-size:7px; color:var(--muted);
+    display:flex; align-items:flex-end; padding:2px; overflow:hidden;}
+  .card .nm{font-size:6px; line-height:1.1; color:var(--text);}
+  .card.tapped{transform:rotate(90deg); margin:0 8px;}
+  .card.back{background:repeating-linear-gradient(45deg,#2a323d,#2a323d 4px,#222933 4px,#222933 8px); color:transparent;}
+  /* 選択カード＝金太枠＋浮上 */
+  .card.sel{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent),0 8px 16px rgba(0,0,0,.6); transform:translateY(-4px);}
+  /* ドロップ可能ゾーン＝破線金枠＋ラベル（形が通常と違う） */
+  .bz.drop{border:2px dashed var(--accent); background:rgba(200,162,74,.08);}
+  .bz.drop .lab{color:var(--accent);}
+  .droptag{font-size:8px; color:var(--accent); border:1px solid var(--accent); border-radius:4px; padding:0 4px; margin-left:6px;}
+
+  .mid{display:flex; align-items:center; gap:8px; padding:0;}
+  .mid .rule{flex:1; height:1px; background:var(--line);}
+  .mid .ml{font-size:8px; color:var(--faint); letter-spacing:.12em;}
+
+  /* 自分の手札（主役・下の主エリア） */
+  .hand{border-top:1px solid var(--line); background:linear-gradient(0deg,rgba(0,0,0,.30),transparent); padding:4px 30px 5px;}
+  .handhead{display:flex; align-items:center; gap:8px; font-size:10px; margin-bottom:3px;}
+  .handhead .cnt{background:var(--surface-3); border:1px solid var(--line); border-radius:999px; padding:0 6px; font-size:9px;}
+  .iconbtn{width:18px; height:18px; border-radius:4px; border:1px solid var(--line-strong); background:var(--surface-2); position:relative; cursor:pointer;}
+  /* CSS図形アイコン（絵文字禁止）：ドロー＝下向き矢印 / 公開＝目 */
+  .ic-draw::before{content:""; position:absolute; left:50%; top:3px; width:1.5px; height:7px; background:var(--text); transform:translateX(-50%);}
+  .ic-draw::after{content:""; position:absolute; left:50%; bottom:4px; width:6px; height:6px; border-right:1.5px solid var(--text); border-bottom:1.5px solid var(--text); transform:translate(-50%,0) rotate(45deg);}
+  .ic-eye{border-color:var(--accent);}
+  .ic-eye::before{content:""; position:absolute; inset:5px 3px; border:1.5px solid var(--accent); border-radius:50%/60%;}
+  .ic-eye::after{content:""; position:absolute; left:50%; top:50%; width:3px; height:3px; border-radius:50%; background:var(--accent); transform:translate(-50%,-50%);}
+  .handcards{display:flex; gap:6px; overflow-x:auto;}
+  .handcards .card{width:34px; height:48px;}
+
+  /* 層B：選択時のクイック操作（下ドックの直上にスタック） */
+  .selbar{display:none; align-items:center; gap:5px; padding:4px 30px; background:var(--surface-2); border-top:1px solid var(--accent-soft);}
+  .selbar.on{display:flex;}
+  .selbar .nm{font-weight:700; font-size:11px;}
+  .selbar .zlab{font-size:9px; color:var(--faint);}
+  .selbar .sp{flex:1;}
+  .minib{font-size:10px; padding:3px 8px; border-radius:5px; border:1px solid var(--line-strong); background:var(--surface); color:var(--text); cursor:pointer;}
+  .minib--accent{border-color:var(--accent); color:var(--accent);}
+  .clsx{width:18px; height:18px; border-radius:4px; border:1px solid var(--line-strong); background:var(--surface); position:relative;}
+  .clsx::before,.clsx::after{content:""; position:absolute; left:50%; top:50%; width:9px; height:1.5px; background:var(--muted);}
+  .clsx::before{transform:translate(-50%,-50%) rotate(45deg);} .clsx::after{transform:translate(-50%,-50%) rotate(-45deg);}
+
+  /* 層A：常設の下固定ドック（親grid最終行・sticky相当） */
+  .dock{display:flex; align-items:stretch; gap:0; background:linear-gradient(0deg,#0e1116,#161b22); border-top:1px solid var(--line-strong);
+    padding-bottom:6px; /* env(safe-area-inset-bottom) 相当を可視化 */}
+  .dockbtn{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:6px 2px 4px; cursor:pointer; color:var(--muted); border-right:1px solid var(--line); position:relative;}
+  .dockbtn:last-child{border-right:none;}
+  .dockbtn .dl{font-size:9px; letter-spacing:.02em;}
+  .dockbtn.primary{color:var(--accent);}
+  .dockbtn.primary::before{content:""; position:absolute; top:0; left:8px; right:8px; height:2px; background:var(--accent); border-radius:2px; box-shadow:0 0 8px rgba(200,162,74,.5);}
+  /* CSS図形のドックアイコン */
+  .di{width:18px; height:18px; position:relative;}
+  .di-draw::before{content:""; position:absolute; left:50%; top:1px; width:2px; height:9px; background:currentColor; transform:translateX(-50%);}
+  .di-draw::after{content:""; position:absolute; left:50%; bottom:3px; width:7px; height:7px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:translate(-50%,0) rotate(45deg);}
+  .di-untap{border:2px solid currentColor; border-radius:50%; border-top-color:transparent;}
+  .di-untap::after{content:""; position:absolute; right:-1px; top:0; border:3px solid transparent; border-bottom-color:currentColor;}
+  .di-shf::before,.di-shf::after{content:""; position:absolute; width:14px; height:2px; background:currentColor; left:2px;}
+  .di-shf::before{top:5px; transform:rotate(12deg);} .di-shf::after{bottom:5px; transform:rotate(-12deg);}
+  .di-end{border:2px solid currentColor; border-radius:3px;}
+  .di-end::after{content:""; position:absolute; left:3px; top:3px; right:3px; bottom:3px; background:currentColor; opacity:.5;}
+  .di-log{border:2px solid currentColor; border-radius:3px;}
+  .di-log::after{content:""; position:absolute; left:3px; top:4px; right:5px; height:2px; background:currentColor; box-shadow:0 4px 0 currentColor;}
+  .di-more{display:flex; gap:2px; align-items:center; justify-content:center;}
+  .di-more::before,.di-more::after{content:""; width:3px; height:3px; border-radius:50%; background:currentColor;}
+  .di-more .m{width:3px; height:3px; border-radius:50%; background:currentColor;}
+
+  /* ドロワー（ログ等が下から立ち上がる・盤面が半分見える） */
+  .drawer{position:absolute; left:0; right:0; bottom:32px; height:58%; z-index:25;
+    background:var(--surface); border-top:2px solid var(--accent); border-radius:12px 12px 0 0;
+    box-shadow:0 -16px 40px rgba(0,0,0,.6); transform:translateY(0); display:flex; flex-direction:column;}
+  .drawer .handle{width:42px; height:4px; border-radius:999px; background:var(--line-strong); margin:6px auto;}
+  .drawer .dtabs{display:flex; border-bottom:1px solid var(--line); padding:0 12px;}
+  .drawer .dtab{padding:6px 14px; font-size:11px; color:var(--muted); border-bottom:2px solid transparent;}
+  .drawer .dtab.on{color:var(--text); border-bottom-color:var(--accent);}
+  .drawer .dbody{flex:1; overflow:auto; padding:8px 14px; font-size:11px; color:var(--muted);}
+  .logitem{display:flex; gap:6px; align-items:baseline; padding:3px 0; border-bottom:1px solid var(--line);}
+  .logdot{width:6px; height:6px; border-radius:50%; flex:0 0 auto;}
+  .scrim{position:absolute; inset:0 0 32px; background:rgba(8,10,13,.35); z-index:24;}
+
+  /* キャプション（なぜこの設計か） */
+  .cap{position:absolute; z-index:40; max-width:188px; font-size:9.5px; line-height:1.45; color:var(--text);
+    background:rgba(14,17,22,.92); border:1px solid var(--accent); border-left:3px solid var(--accent);
+    border-radius:5px; padding:6px 8px; box-shadow:var(--shadow-pop);}
+  .cap b{color:var(--accent); display:block; font-size:9px; letter-spacing:.04em; margin-bottom:2px; font-weight:800;}
+  .cap .arr{position:absolute; width:9px; height:9px; background:rgba(14,17,22,.92); border-right:1px solid var(--accent); border-bottom:1px solid var(--accent); transform:rotate(45deg);}
+
+  .notes{max-width:1080px; margin:34px 0 0; color:var(--muted); font-size:12.5px; line-height:1.8;}
+  .notes h3{font-size:13px; color:var(--text); margin:18px 0 6px;}
+  .notes ul{margin:4px 0 0; padding-left:18px;} .notes li{margin:3px 0;}
+  .notes code{background:var(--surface-2); border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:11px; color:var(--accent);}
+  .legend{display:flex; gap:18px; flex-wrap:wrap; margin:10px 0 0; font-size:11px; color:var(--muted);}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .lg-sel{width:14px; height:14px; border-radius:3px; border:2px solid var(--accent); box-shadow:0 0 6px rgba(200,162,74,.5);}
+  .lg-active{width:14px; height:14px; border-radius:3px; box-shadow:inset 0 0 0 1px var(--accent),0 0 8px -1px rgba(200,162,74,.6); background:var(--surface);}
+  .lg-drop{width:14px; height:14px; border-radius:3px; border:2px dashed var(--accent);}
+  .lg-safe{width:14px; height:14px; border-radius:3px; background:linear-gradient(90deg,rgba(0,0,0,.45),var(--surface));}
+
+  /* ===== PCフレーム 1280x800（変化なしの確認用・縮小表示） ===== */
+  .pc{width:560px; height:350px; display:grid; grid-template-rows:30px 1fr; }
+  .pc .topbar{display:flex; align-items:center; gap:8px; padding:0 12px; background:rgba(0,0,0,.25); border-bottom:1px solid var(--line); font-size:11px; color:var(--muted);}
+  .pc .topbar .brand{color:var(--text); font-weight:800; display:inline-flex; gap:6px; align-items:center;}
+  .pc .topbar .brand .dot{width:8px; height:8px; border-radius:50%; background:var(--accent);}
+  .pc .topbar .nav{display:flex; gap:4px; margin-left:10px;}
+  .pc .topbar .nb{font-size:10px; padding:2px 8px; border-radius:5px; border:1px solid var(--line); color:var(--muted);}
+  .pc .topbar .nb.on{background:var(--accent-soft); color:var(--accent); border-color:var(--accent);}
+  .pc .grid{display:grid; grid-template-columns:1fr 150px; min-height:0;}
+  .pc .pcboard{padding:8px 12px; display:flex; flex-direction:column; gap:5px; overflow:hidden;}
+  .pc .rp{border-left:1px solid var(--line); background:var(--surface); font-size:10px; color:var(--faint); padding:8px;}
+  .pc .subbar{display:flex; align-items:center; gap:5px; font-size:9px; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:4px;}
+  .pc .subbar .b{font-size:9px; padding:1px 6px; border-radius:4px; border:1px solid var(--line); color:var(--muted);}
+  .pc .subbar .b.accent{border-color:var(--accent); color:var(--accent);}
+</style>
+</head>
+<body>
+  <h1>横向きPWA専用レイアウト（landscape）</h1>
+  <p class="lead">
+    端末を横に倒すと<b>操作なしで</b>横向き専用卓に切り替わる（<code>boardLayoutMode:'auto'</code>）。手動上書きも残す。
+    狭く低い横画面では<b>盤面と自分の手札を主役</b>にし、操作は<b>親指の届く最下部の固定ドック</b>に集約。
+    情報バー・ログ・デッキは沈め、必要なときだけ下から引き出す。<b>新しいゲーム操作は一切足さず</b>、既存storeアクションの再配置だけ＝Undo履歴にそのまま乗る。
+  </p>
+
+  <div class="secttl">想定A — iPhone 横 844 × 390（通常時・自分=手番）</div>
+  <div class="frames">
+    <div class="framewrap">
+      <div class="frametag"><b>battle--landscape</b> ／ 自分(P1)の手番・カード未選択</div>
+      <div class="device">
+        <div class="phone">
+          <div class="safe-l"></div><div class="safe-note l">safe-area</div>
+          <div class="safe-r"></div><div class="safe-note r">ノッチ側</div>
+
+          <!-- 上：薄い情報バー -->
+          <div class="infobar">
+            <span class="turnbadge">ターン <b>4</b> <span class="seatdot seatdot--p1"></span> プレイヤー1</span>
+            <span class="pill">自分の手番</span>
+            <span class="clk"><b>ターン経過</b> 01:12 ・ <b>対戦</b> 18:40</span>
+          </div>
+
+          <!-- 中：盤面 -->
+          <div class="board">
+            <!-- 相手側（上・手札は裏束で最小） -->
+            <div class="side side--opp">
+              <div class="sidehead">
+                <span class="seatdot seatdot--p2"></span><span class="sidename">P2</span>
+                <span class="zlab" style="color:var(--faint);font-size:9px;">手札 5（裏）</span>
+                <span class="clk">累計 09:22</span>
+              </div>
+              <div class="sidebody">
+                <div class="rail">
+                  <div class="zchip zchip--deck"><span class="zn">山札</span><span class="zc">22</span></div>
+                  <div class="zchip"><span class="zn">マナ</span><span class="zc">6</span></div>
+                  <div class="zchip"><span class="zn">墓地</span><span class="zc">4</span></div>
+                </div>
+                <div class="main">
+                  <div class="shields"><div class="lab">シールド 5</div><div class="shieldrow"><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i></div></div>
+                  <div class="bz"><div class="lab">バトルゾーン 2</div><div class="bzcards"><span class="card"><span class="nm">竜</span></span><span class="card tapped"><span class="nm">鬼</span></span></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mid"><span class="rule"></span><span class="ml">盤面中央</span><span class="rule"></span></div>
+
+            <!-- 自分側（下・手番ハイライト） -->
+            <div class="side side--self is-active">
+              <div class="sidehead">
+                <span class="seatdot seatdot--p1"></span><span class="sidename">P1</span>
+                <span class="active-pin">手番</span>
+                <span class="clk">累計 09:18</span>
+              </div>
+              <div class="sidebody">
+                <div class="rail">
+                  <div class="zchip zchip--deck"><span class="zn">山札</span><span class="zc">19</span></div>
+                  <div class="zchip"><span class="zn">マナ</span><span class="zc">7</span></div>
+                  <div class="zchip"><span class="zn">墓地</span><span class="zc">5</span></div>
+                </div>
+                <div class="main">
+                  <div class="bz"><div class="lab">バトルゾーン 3</div><div class="bzcards"><span class="card"><span class="nm">天門</span></span><span class="card"><span class="nm">青龍</span></span><span class="card tapped"><span class="nm">守</span></span></div></div>
+                  <div class="shields"><div class="lab">シールド 5</div><div class="shieldrow"><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 自分の手札（主役） -->
+          <div class="hand">
+            <div class="handhead">
+              <span class="seatdot seatdot--p1"></span><span>P1 手札</span><span class="cnt">7枚</span>
+              <span style="flex:1"></span>
+              <i class="iconbtn ic-draw" title="ドロー"></i>
+              <i class="iconbtn ic-eye" title="表示/非表示"></i>
+            </div>
+            <div class="handcards">
+              <span class="card"><span class="nm">アクア</span></span><span class="card"><span class="nm">英知</span></span>
+              <span class="card"><span class="nm">ボルメテ</span></span><span class="card"><span class="nm">サイバー</span></span>
+              <span class="card"><span class="nm">ホーリー</span></span><span class="card"><span class="nm">エナジー</span></span>
+              <span class="card"><span class="nm">フェアリー</span></span>
+            </div>
+          </div>
+
+          <!-- 層A：常設の下固定ドック -->
+          <div class="dock">
+            <div class="dockbtn primary"><span class="di di-draw"></span><span class="dl">ドロー</span></div>
+            <div class="dockbtn"><span class="di di-untap"></span><span class="dl">全アンタップ</span></div>
+            <div class="dockbtn"><span class="di di-shf"></span><span class="dl">シャッフル</span></div>
+            <div class="dockbtn"><span class="di di-end"></span><span class="dl">ターン終了</span></div>
+            <div class="dockbtn"><span class="di di-log"></span><span class="dl">ログ</span></div>
+            <div class="dockbtn"><span class="di di-more"><span class="m"></span></span><span class="dl">その他</span></div>
+          </div>
+
+          <!-- キャプション -->
+          <div class="cap" style="left:300px; top:30px;">
+            <span class="arr" style="left:-5px; top:14px;"></span>
+            <b>なぜ下固定ドック</b>横持ちで親指が届くのは下端。主操作（ドロー/全アンタップ/シャッフル/ターン終了）を上のサブバーから下へ移し、上は表示専用の薄い情報バーだけに。
+          </div>
+          <div class="cap" style="left:30px; bottom:46px; max-width:172px;">
+            <span class="arr" style="left:30px; bottom:-5px;"></span>
+            <b>手番＝金枠＋発光＋ラベル</b>色覚に依存しないよう、枠の発光と「手番」ピルの2点で示す。
+          </div>
+          <div class="cap" style="right:30px; top:78px; max-width:166px;">
+            <span class="arr" style="right:-5px; top:14px;"></span>
+            <b>相手手札は裏束で最小</b>非公開情報を横向きで大きく開かない。枚数だけ表示。
+          </div>
+        </div>
+      </div>
+      <div class="frametag" style="color:var(--faint);">
+        ヘッダは「P1 手札」へ短縮し1行固定（折り返さない）。ドロー/公開はCSS図形アイコン化。
+      </div>
+    </div>
+  </div>
+
+  <div class="secttl">想定B — 同サイズ：カード選択中（層Bが下ドックの上に積む）＋ ログを下ドロワーで開いた状態</div>
+  <div class="frames">
+    <div class="framewrap">
+      <div class="frametag"><b>選択時</b>：手札の1枚をタップ → 層B（選択操作バー）が出る</div>
+      <div class="device">
+        <div class="phone" style="grid-template-rows:22px 1fr auto auto;">
+          <div class="safe-l"></div><div class="safe-r"></div>
+          <div class="infobar">
+            <span class="turnbadge">ターン <b>4</b> <span class="seatdot seatdot--p1"></span> プレイヤー1</span>
+            <span class="pill">自分の手番</span>
+            <span class="clk"><b>ターン経過</b> 01:30</span>
+          </div>
+          <div class="board">
+            <div class="side side--opp">
+              <div class="sidehead"><span class="seatdot seatdot--p2"></span><span class="sidename">P2</span><span style="color:var(--faint);font-size:9px;">手札 5（裏）</span></div>
+              <div class="sidebody">
+                <div class="rail"><div class="zchip zchip--deck"><span class="zn">山札</span><span class="zc">22</span></div><div class="zchip"><span class="zn">マナ</span><span class="zc">6</span></div></div>
+                <div class="main">
+                  <div class="shields"><div class="lab">シールド 5</div><div class="shieldrow"><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i></div></div>
+                  <!-- ドロップ可能ゾーン＝破線金枠＋ラベル -->
+                  <div class="bz drop"><div class="lab">バトルゾーン 2 <span class="droptag">置く</span></div><div class="bzcards"><span class="card"><span class="nm">竜</span></span><span class="card tapped"><span class="nm">鬼</span></span></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="mid"><span class="rule"></span><span class="ml">盤面中央</span><span class="rule"></span></div>
+            <div class="side side--self is-active">
+              <div class="sidehead"><span class="seatdot seatdot--p1"></span><span class="sidename">P1</span><span class="active-pin">手番</span></div>
+              <div class="sidebody">
+                <div class="rail"><div class="zchip zchip--deck"><span class="zn">山札</span><span class="zc">19</span></div><div class="zchip"><span class="zn">マナ</span><span class="zc">7</span></div></div>
+                <div class="main">
+                  <div class="bz drop"><div class="lab">バトルゾーン 3 <span class="droptag">置く</span></div><div class="bzcards"><span class="card"><span class="nm">天門</span></span><span class="card"><span class="nm">青龍</span></span></div></div>
+                  <div class="shields"><div class="lab">シールド 5</div><div class="shieldrow"><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="hand">
+            <div class="handhead"><span class="seatdot seatdot--p1"></span><span>P1 手札</span><span class="cnt">7枚</span><span style="flex:1"></span><i class="iconbtn ic-draw"></i><i class="iconbtn ic-eye"></i></div>
+            <div class="handcards">
+              <span class="card sel"><span class="nm">アクア</span></span><span class="card"><span class="nm">英知</span></span>
+              <span class="card"><span class="nm">ボルメテ</span></span><span class="card"><span class="nm">サイバー</span></span>
+              <span class="card"><span class="nm">ホーリー</span></span><span class="card"><span class="nm">エナジー</span></span><span class="card"><span class="nm">フェアリー</span></span>
+            </div>
+          </div>
+          <!-- 層B -->
+          <div class="selbar on">
+            <span class="nm">アクア・ガード</span><span class="zlab">手札</span><span class="sp"></span>
+            <button class="minib">タップ</button><button class="minib">攻撃</button>
+            <button class="minib">タグ</button><button class="minib">封印</button>
+            <button class="minib">重ね</button><button class="minib minib--accent">詳細</button>
+            <button class="minib">操作▾</button><i class="clsx"></i>
+          </div>
+          <!-- 層A -->
+          <div class="dock">
+            <div class="dockbtn primary"><span class="di di-draw"></span><span class="dl">ドロー</span></div>
+            <div class="dockbtn"><span class="di di-untap"></span><span class="dl">全アンタップ</span></div>
+            <div class="dockbtn"><span class="di di-shf"></span><span class="dl">シャッフル</span></div>
+            <div class="dockbtn"><span class="di di-end"></span><span class="dl">ターン終了</span></div>
+            <div class="dockbtn"><span class="di di-log"></span><span class="dl">ログ</span></div>
+            <div class="dockbtn"><span class="di di-more"><span class="m"></span></span><span class="dl">その他</span></div>
+          </div>
+          <div class="cap" style="left:300px; bottom:78px; max-width:178px;">
+            <span class="arr" style="left:-5px; bottom:14px;"></span>
+            <b>層B＝選択時だけ・層Aの直上</b>1タップは選択のみ。実行は層Bのボタンで明示＝誤爆しない。中身は既存SelectedActionBarをそのまま再利用。
+          </div>
+          <div class="cap" style="left:175px; top:64px; max-width:170px;">
+            <span class="arr" style="left:30px; top:-5px;"></span>
+            <b>ドロップ可＝破線＋「置く」</b>選択中だけ置けるゾーンを破線金枠で示す。実線（通常）と形が違う＝色だけに頼らない。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="framewrap">
+      <div class="frametag"><b>ログ▴を開いた状態</b>：下ドロワー（盤面は半分見える）</div>
+      <div class="device">
+        <div class="phone">
+          <div class="safe-l"></div><div class="safe-r"></div>
+          <div class="infobar">
+            <span class="turnbadge">ターン <b>4</b> <span class="seatdot seatdot--p1"></span> プレイヤー1</span>
+            <span class="pill">自分の手番</span>
+          </div>
+          <div class="board">
+            <div class="side side--opp" style="opacity:.85;">
+              <div class="sidehead"><span class="seatdot seatdot--p2"></span><span class="sidename">P2</span><span style="color:var(--faint);font-size:9px;">手札 5（裏）</span></div>
+              <div class="sidebody"><div class="rail"><div class="zchip zchip--deck"><span class="zn">山札</span><span class="zc">22</span></div></div><div class="main"><div class="shields"><div class="lab">シールド 5</div><div class="shieldrow"><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i></div></div></div></div>
+            </div>
+          </div>
+          <div class="dock">
+            <div class="dockbtn primary"><span class="di di-draw"></span><span class="dl">ドロー</span></div>
+            <div class="dockbtn"><span class="di di-untap"></span><span class="dl">全アンタップ</span></div>
+            <div class="dockbtn"><span class="di di-shf"></span><span class="dl">シャッフル</span></div>
+            <div class="dockbtn"><span class="di di-end"></span><span class="dl">ターン終了</span></div>
+            <div class="dockbtn" style="color:var(--accent);"><span class="di di-log"></span><span class="dl">ログ</span></div>
+            <div class="dockbtn"><span class="di di-more"><span class="m"></span></span><span class="dl">その他</span></div>
+          </div>
+          <div class="scrim"></div>
+          <div class="drawer">
+            <div class="handle"></div>
+            <div class="dtabs">
+              <span class="dtab on">ログ</span><span class="dtab">デッキ</span><span class="dtab">グラフ</span>
+            </div>
+            <div class="dbody">
+              <div class="logitem"><i class="logdot" style="background:var(--accent);"></i><span style="color:var(--faint);">01:12</span><span style="color:var(--text);">ターン4 開始 — プレイヤー1（3枚アンタップ）</span></div>
+              <div class="logitem"><i class="logdot" style="background:var(--self);"></i><span style="color:var(--faint);">01:05</span><span style="color:var(--text);">プレイヤー1 が1枚引いた（残り山札19）</span></div>
+              <div class="logitem"><i class="logdot" style="background:var(--opp);"></i><span style="color:var(--faint);">00:48</span><span style="color:var(--text);">青龍 で攻撃</span></div>
+              <div class="logitem"><i class="logdot" style="background:#7d6f93;"></i><span style="color:var(--faint);">00:30</span><span style="color:var(--text);">守 をタップ</span></div>
+            </div>
+          </div>
+          <div class="cap" style="left:200px; top:30px; max-width:184px;">
+            <span class="arr" style="left:-5px; top:14px;"></span>
+            <b>盤面が半分見えるドロワー</b>ログ/デッキ/グラフは下から立ち上げる。開いている間も卓から完全には離れない＝孤立ページを作らない。中身は既存RightPanelのタブを流用。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i class="lg-active"></i>手番（金枠＋発光＋「手番」ラベル）</span>
+    <span><i class="lg-sel"></i>選択カード（金太枠＋浮上＋層Bに名前）</span>
+    <span><i class="lg-drop"></i>ドロップ可ゾーン（破線＋「置く」）</span>
+    <span><i class="lg-safe"></i>safe-area（左右ノッチ・下端インジケータ）</span>
+  </div>
+
+  <div class="secttl">PC（1280×800相当・縦横長デスクトップ）— 横向き分岐に入らず従来どおり（不変の確認）</div>
+  <div class="frames">
+    <div class="framewrap">
+      <div class="frametag">マウス＋キーボード。上部ナビ・上部サブバー・右パネルすべて従来のまま。</div>
+      <div class="device">
+        <div class="pc">
+          <div class="topbar">
+            <span class="brand"><span class="dot"></span>DUEL TABLE</span>
+            <span class="nav"><span class="nb">ホーム</span><span class="nb on">対戦</span><span class="nb">2ピック</span><span class="nb">デッキ</span><span class="nb">オンライン</span></span>
+            <span style="flex:1"></span><span class="nb">カードDB</span><span class="nb">管理</span><span class="nb">設定</span>
+          </div>
+          <div class="grid">
+            <div class="pcboard">
+              <div class="subbar"><span>ターン <b style="color:var(--accent)">4</b></span><span class="seatdot seatdot--p1"></span><span>プレイヤー1</span><span style="flex:1"></span><span class="b">ドロー</span><span class="b">全アンタップ</span><span class="b">シャッフル</span><span class="b accent">ターン終了</span></div>
+              <div class="side side--opp"><div class="sidehead"><span class="seatdot seatdot--p2"></span><span class="sidename">P2</span></div><div class="sidebody"><div class="rail"><div class="zchip"><span class="zn">山札</span><span class="zc">22</span></div></div><div class="main"><div class="shields"><div class="lab">シールド</div><div class="shieldrow"><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i></div></div><div class="bz"><div class="lab">バトルゾーン</div><div class="bzcards"><span class="card"></span><span class="card tapped"></span></div></div></div></div></div>
+              <div class="side side--self is-active"><div class="sidehead"><span class="seatdot seatdot--p1"></span><span class="sidename">P1</span><span class="active-pin">手番</span></div><div class="sidebody"><div class="rail"><div class="zchip"><span class="zn">山札</span><span class="zc">19</span></div></div><div class="main"><div class="bz"><div class="lab">バトルゾーン</div><div class="bzcards"><span class="card"></span><span class="card"></span></div></div><div class="shields"><div class="lab">シールド</div><div class="shieldrow"><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i><i class="shield"></i></div></div></div></div></div>
+              <div class="hand" style="padding:4px 12px;"><div class="handhead"><span>プレイヤー1の手札</span><span class="cnt">7枚</span></div><div class="handcards"><span class="card"></span><span class="card"></span><span class="card"></span><span class="card"></span><span class="card"></span></div></div>
+            </div>
+            <div class="rp">ログ / デッキ / グラフ<br><br>右パネルは従来どおり右列に常設（横向き分岐なし）。</div>
+          </div>
+          <div class="cap" style="right:24px; bottom:40px; max-width:188px;">
+            <span class="arr" style="right:-5px; bottom:14px;"></span>
+            <b>PCは一切変えない</b>landscapeは <code>(pointer:coarse)</code>＋低い<code>max-height</code> でのみ発火。デスクトップ幅・マウス環境は分岐に入らない。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>この設計で守っている「DUEL TABLEの不変の思想」</h3>
+    <ul>
+      <li><b>手動卓</b>：ドック・層B・ドロワーはすべて既存storeアクション（<code>draw / untapAll / shuffleDeck / endTurn / toggleTap / attackWith</code> など）の再配置のみ。自動判定・プレイ補助チェックはゼロ。ログは履歴のまま。</li>
+      <li><b>Undo整合</b>：新規アクションを足さないので、既存のUndo/Redo/「ターンの最初に戻す」にそのまま乗る。</li>
+      <li><b>非公開情報</b>：相手手札は裏束＋枚数のみ。シールド・山札は伏せ。「自分だけ見る／公開する」は既存トグル（<code>toggleRevealHand</code>）を踏襲し、横向きでも勝手に広げない。</li>
+      <li><b>色だけに頼らない</b>：手番＝枠の発光＋「手番」ピル、選択＝金枠＋浮上＋層Bの名前、ドロップ可＝破線＋「置く」。形・位置・ラベルを併用。</li>
+      <li><b>美術トーン</b>：暗い卓色（<code>#12151a〜#1c222b</code>）＋金<code>#c8a24a</code>を線・縁・発光に少量。自分=水<code>#5a8fc7</code>／相手=火<code>#c86a52</code>の既存配色。絵文字なし・アイコンは全てCSS図形。</li>
+    </ul>
+    <h3>操作の競合回避（同一ジェスチャが二役を持たない）</h3>
+    <ul>
+      <li>タップ＝選択のみ ／ 長押し(約450ms)＝文脈メニュー（PC右クリック相当） ／ 横スワイプ＝手札帯だけスクロール（<code>touch-action:pan-x</code>を手札帯に限定） ／ 下端ドック＝実行。動作種別か対象領域で分離。</li>
+      <li>キーボード（D/E/A/S/Esc）はPC・外付けキーボードでそのまま維持。入力欄フォーカス中は既存どおり無効。</li>
+    </ul>
+  </div>
+</body>
+</html>

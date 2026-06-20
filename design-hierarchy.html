@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DUEL TABLE 明度階層とプレイマット物体化 モック</title>
+<style>
+  :root{
+    --surface:#1c222b; --surface-2:#232a34; --surface-3:#2b333f;
+    --text:#e7ebf1; --muted:#aeb6c2; --faint:#646c78;
+    --line:rgba(255,255,255,.08); --line-strong:rgba(255,255,255,.16);
+    --accent:#c8a24a; --accent-soft:rgba(200,162,74,.16);
+    --accent-strong:#d4af37; --gold-line:rgba(201,169,110,.55);
+    --mat-1:#1b1712; --mat-2:#211c14; --mat-edge:#16130e;
+    --card-w:74px; --card-ratio:1.4;
+    --radius:8px; --radius-lg:12px;
+    --shadow-pop:0 10px 26px -10px rgba(0,0,0,.7), 0 3px 8px -3px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif; background:#0d0b08; color:var(--text); padding:18px; -webkit-font-smoothing:antialiased;}
+  h1{font-size:15px; font-weight:600; letter-spacing:.06em; color:var(--muted); margin:0 0 4px}
+  .lead{font-size:12px; color:var(--faint); margin:0 0 16px; line-height:1.7; max-width:980px}
+  .split{display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start}
+  .panel{border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden; background:#0f0d0a}
+  .panel__cap{font-size:11px; letter-spacing:.12em; color:var(--faint); padding:8px 12px; border-bottom:1px solid var(--line); background:#141210}
+  .panel--after .panel__cap{color:var(--accent-strong)}
+  .battlemain{position:relative; padding:12px; min-height:560px; background:radial-gradient(120% 80% at 50% 0%, rgba(212,165,116,.05) 0%, transparent 55%),radial-gradient(120% 80% at 50% 100%, rgba(212,165,116,.06) 0%, transparent 55%),linear-gradient(180deg, var(--mat-2) 0%, var(--mat-1) 50%, var(--mat-edge) 100%);}
+  .battlemain::after{content:""; position:absolute; inset:0; pointer-events:none; opacity:.5; background:repeating-linear-gradient(115deg, rgba(255,255,255,.012) 0 2px, transparent 2px 5px); mix-blend-mode:overlay;}
+  .battlemain>*{position:relative; z-index:1}
+  .side{border-radius:var(--radius-lg); padding:8px 10px; border:1px solid var(--line); position:relative; transition:box-shadow .25s, background .25s, filter .25s;}
+  .side--opp{background:linear-gradient(180deg, rgba(200,106,82,.06), transparent 60%); border-top:2px solid rgba(200,106,82,.4);}
+  .side--self{background:linear-gradient(0deg, rgba(90,143,199,.06), transparent 60%); border-bottom:2px solid rgba(90,143,199,.45);}
+  .side__head{display:flex; align-items:center; gap:10px; margin-bottom:6px; font-size:13px}
+  .side__name{font-weight:700}
+  .seatdot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle}
+  .seatdot--p1{background:#5a8fc7} .seatdot--p2{background:#c86a52}
+  .side__deckname{color:var(--faint); font-size:11px}
+  .spacer{flex:1}
+  .clock{font-size:11px; color:var(--faint)}
+  .side__active-pin{font-size:11px; color:var(--accent-strong); border:1px solid var(--accent-strong); border-radius:999px; padding:1px 8px}
+  .side.is-active{box-shadow:inset 0 0 0 1px var(--accent-soft), 0 0 34px -12px rgba(201,169,110,.45); background-image:linear-gradient(180deg, rgba(201,169,110,.05), transparent 55%);}
+  .side.is-active::before{content:""; position:absolute; left:0; top:8px; bottom:8px; width:3px; border-radius:3px; background:linear-gradient(180deg, var(--accent-strong), var(--accent)); box-shadow:0 0 10px 1px rgba(201,169,110,.7);}
+  .is-dimmed{filter:saturate(.92) brightness(.8);}
+  .side__body{display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:start}
+  .side__rail{display:flex; flex-direction:column; gap:8px}
+  .side__main{display:flex; flex-direction:column; gap:8px; min-width:0}
+  .obj{position:relative; min-width:104px; cursor:pointer; border-radius:var(--radius); padding:8px 9px; background:var(--surface); border:1px solid var(--line);}
+  .obj:hover{border-color:var(--accent)}
+  .obj__name{font-size:11px; color:var(--muted); letter-spacing:.04em}
+  .obj__cnt{position:absolute; top:6px; right:8px; font-size:16px; font-weight:800; font-variant-numeric:tabular-nums}
+  .obj__sub{font-size:10px; color:var(--faint); margin-top:2px}
+  .obj__prev{margin-top:6px; height:34px; position:relative}
+  .deckstack{position:relative; width:30px; height:30px}
+  .deckstack i{position:absolute; width:24px; height:30px; border-radius:3px; background:repeating-linear-gradient(45deg,#2a323d,#2a323d 4px,#222933 4px,#222933 8px); border:1px solid var(--line-strong);}
+  .deckstack i:nth-child(1){left:0; top:3px} .deckstack i:nth-child(2){left:3px; top:1.5px}
+  .deckstack i:nth-child(3){left:6px; top:0; border-color:var(--gold-line); box-shadow:0 0 0 1px rgba(201,169,110,.25)}
+  .grave{position:relative; width:42px; height:30px}
+  .grave i{position:absolute; width:22px; height:28px; border-radius:3px; background:var(--surface-3); border:1px solid var(--line-strong)}
+  .grave i:nth-child(1){left:0; top:2px; transform:rotate(-9deg)}
+  .grave i:nth-child(2){left:9px; top:1px; transform:rotate(5deg)}
+  .grave i:nth-child(3){left:17px; top:0; transform:rotate(-3deg)}
+  .civdot{position:absolute; right:2px; bottom:2px; width:7px; height:7px; border-radius:50%; z-index:2}
+  .mana{display:flex; gap:3px; align-items:flex-end; height:34px}
+  .mana i{width:15px; height:22px; border-radius:2px; background:var(--surface-3); border:1px solid var(--line-strong)}
+  .mana i.tap{width:22px; height:15px; opacity:.7}
+  .mana i.civ-fire{box-shadow:inset 0 -3px 0 #c0392b}
+  .mana i.civ-water{box-shadow:inset 0 -3px 0 #2e6fb0}
+  .mana i.civ-nature{box-shadow:inset 0 -3px 0 #3c8a4e}
+  .mana i.civ-light{box-shadow:inset 0 -3px 0 #cbb24a}
+  .bz{flex:1; min-width:220px; min-height:120px; padding:8px; border-radius:var(--radius); background:rgba(0,0,0,.18); border:1px dashed var(--line); position:relative;}
+  .bz__label{font-size:10px; color:var(--faint); margin-bottom:6px; letter-spacing:.08em}
+  .bz__empty{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.06); font-size:22px; letter-spacing:.5em; font-weight:700; pointer-events:none; text-shadow:0 1px 0 rgba(255,255,255,.04), 0 -1px 0 rgba(0,0,0,.5);}
+  .bz__cards{display:flex; gap:10px; flex-wrap:wrap; position:relative; z-index:1}
+  .card{width:var(--card-w); height:calc(var(--card-w) * var(--card-ratio)); border-radius:6px; border:1px solid var(--line-strong); background:linear-gradient(160deg,#2b333f,#222933); position:relative; box-shadow:var(--shadow-pop); display:flex; flex-direction:column; justify-content:space-between; padding:5px; font-size:10px; transition:transform .16s, box-shadow .16s, filter .16s; cursor:grab;}
+  .card__top{display:flex; justify-content:space-between; align-items:flex-start}
+  .card__cost{width:18px; height:18px; border-radius:50%; background:#11151c; border:1px solid var(--line-strong); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px}
+  .card__civ{width:14px; height:14px; border-radius:3px; font-size:9px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff}
+  .civ-fire{background:#c0392b} .civ-water{background:#2e6fb0} .civ-nature{background:#3c8a4e} .civ-light{background:#cbb24a; color:#222} .civ-dark{background:#5a4a6a}
+  .card__name{font-size:10px; line-height:1.25; font-weight:600}
+  .card__bottom{display:flex; justify-content:space-between; align-items:center; color:var(--muted)}
+  .card__pow{font-weight:800; font-variant-numeric:tabular-nums}
+  .card.is-tapped{transform:rotate(90deg) scale(.92); transform-origin:center}
+  .card.is-selected{filter:none !important; transform:translateY(-5px); border-color:var(--accent-strong); box-shadow:0 0 0 2px var(--accent-strong), 0 0 22px -2px rgba(212,175,55,.6), var(--shadow-pop); z-index:3;}
+  .is-dimmed .card.is-selected{filter:none !important}
+  .side__shields{margin-top:2px}
+  .shieldrow{display:flex; gap:5px; margin-top:4px}
+  .scard{width:30px; height:42px; border-radius:4px; background:repeating-linear-gradient(45deg,#2a323d,#2a323d 5px,#222933 5px,#222933 10px); border:1px solid var(--line-strong); box-shadow:0 3px 6px -2px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.04);}
+  .drop{position:relative; border-color:var(--accent-strong) !important; box-shadow:inset 0 0 18px -2px rgba(212,175,55,.55), 0 0 14px -2px rgba(212,175,55,.4) !important;}
+  .drop::after{content:"ここに置く"; position:absolute; top:4px; right:6px; font-size:9px; color:var(--accent-strong); letter-spacing:.08em; z-index:2}
+  .drop__ghost{outline:1.5px dashed var(--gold-line); outline-offset:-4px}
+  .middle{display:flex; align-items:center; gap:10px; padding:4px 0; margin:4px 0}
+  .middle__rule{flex:1; height:1px; background:var(--line)}
+  .middle__rule.lit{background:linear-gradient(90deg, transparent, var(--gold-line), transparent); height:1px}
+  .middle__label{font-size:10px; color:var(--faint); letter-spacing:.18em}
+  .note{font-size:10px; color:var(--faint); border-left:2px solid var(--gold-line); padding:4px 0 4px 8px; margin:6px 0; line-height:1.6}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:10px; color:var(--faint); margin:14px 0 0; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius)}
+  .legend b{color:var(--muted); font-weight:600}
+  .flat .side.is-active{box-shadow:inset 0 0 0 1px var(--accent-soft); background-image:none}
+  .flat .side.is-active::before{display:none}
+  .flat .zoneflat{min-width:104px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:8px 9px; position:relative}
+  .flat .zoneflat .obj__cnt{position:absolute; top:6px; right:8px; font-size:16px; font-weight:800}
+  .flat .card{box-shadow:0 2px 6px -3px rgba(0,0,0,.5)}
+  .flat .card.is-selected{transform:none; filter:none !important; box-shadow:0 0 0 2px var(--accent-soft); border-color:var(--accent)}
+  .flat .is-dimmed{filter:none}
+  .flat .bz__empty{color:var(--faint); font-size:12px; letter-spacing:0; text-shadow:none; font-weight:400; position:static; display:block; padding:16px}
+  .mobile-wrap{margin-top:22px}
+  .mobile{width:844px; max-width:100%; height:390px; border:1px solid var(--line); border-radius:14px; overflow:hidden; position:relative}
+  .mobile .battlemain{min-height:0; height:100%; padding:8px}
+  .mobile .twocol{display:grid; grid-template-columns:1fr 1fr; gap:8px; height:100%}
+  .mobile .side{padding:6px}
+  .mobile .card{--card-w:46px; font-size:8px}
+  .mobile .card__cost{width:14px;height:14px;font-size:9px}
+  .mobile .scard{width:18px; height:26px}
+  .mobile .obj{min-width:62px; padding:5px 6px}
+  .mobile .obj__cnt{font-size:13px}
+  .mobile .side__body{grid-template-columns:1fr; gap:6px}
+  .mobile .side__rail{flex-direction:row; flex-wrap:wrap; gap:5px}
+</style>
+</head>
+<body>
+  <h1>DUEL TABLE — 明度階層とプレイマット物体化</h1>
+  <p class="lead">左＝現状（明度フラット・ゾーンは数字チップ・手番は薄インセット＋文字ピンのみで領域差なし）／右＝改善後（3段の明度階層・ゾーン物体化・手番領域の持ち上げ）。手動卓の思想は不変：自動判定もプレイ補助チェックも足さない。追加は「見た目の階層・物体化」と「移動の物理操作（ドラッグ＆ドロップ）」だけで、移動は既存 moveCard を呼ぶ＝Undo・オンライン同期に自動で乗る。色だけに頼らず位置・形・向き・ラベルを併用する。</p>
+  <div class="split">
+    <div class="panel flat">
+      <div class="panel__cap">現状</div>
+      <div class="battlemain" style="background:linear-gradient(180deg,#232a34,#1c222b)">
+        <div class="side side--opp">
+          <div class="side__head"><span class="side__name"><span class="seatdot seatdot--p2"></span>P2</span><span class="side__deckname">白単フェアリー</span><span class="spacer"></span><span class="clock">累計 12:40</span></div>
+          <div class="side__body"><div class="side__rail">
+            <div class="zoneflat"><span class="obj__name">山札</span><span class="obj__cnt">34</span></div>
+            <div class="zoneflat"><span class="obj__name">マナ</span><span class="obj__cnt">5</span><div class="obj__sub">タップ2/アンタップ3</div></div>
+            <div class="zoneflat"><span class="obj__name">墓地</span><span class="obj__cnt">3</span></div>
+          </div><div class="side__main">
+            <div style="font-size:10px;color:var(--faint)">シールド（5）</div>
+            <div class="shieldrow"><div class="scard"></div><div class="scard"></div><div class="scard"></div><div class="scard"></div><div class="scard"></div></div>
+            <div class="bz"><div class="bz__label">バトルゾーン（1）</div><div class="bz__cards"><div class="card"><div class="card__top"><div class="card__cost">4</div><div class="card__civ civ-light">光</div></div><div class="card__name">天使</div><div class="card__bottom"><span>C</span><span class="card__pow">4000</span></div></div></div></div>
+          </div></div>
+        </div>
+        <div class="middle"><span class="middle__rule"></span><span class="middle__label">ターン 6 ・ P1 手番</span><span class="middle__rule"></span></div>
+        <div class="side side--self is-active">
+          <div class="side__head"><span class="side__name"><span class="seatdot seatdot--p1"></span>P1</span><span class="side__deckname">赤緑モルト</span><span class="side__active-pin">手番</span><span class="spacer"></span><span class="clock">累計 09:55</span></div>
+          <div class="side__body"><div class="side__rail">
+            <div class="zoneflat"><span class="obj__name">山札</span><span class="obj__cnt">28</span></div>
+            <div class="zoneflat"><span class="obj__name">マナ</span><span class="obj__cnt">6</span><div class="obj__sub">タップ4/アンタップ2</div></div>
+            <div class="zoneflat"><span class="obj__name">墓地</span><span class="obj__cnt">7</span></div>
+          </div><div class="side__main">
+            <div class="bz"><div class="bz__label">バトルゾーン（2）</div><div class="bz__cards">
+              <div class="card"><div class="card__top"><div class="card__cost">7</div><div class="card__civ civ-fire">火</div></div><div class="card__name">モルト</div><div class="card__bottom"><span>ドラゴン</span><span class="card__pow">7000</span></div></div>
+              <div class="card is-selected"><div class="card__top"><div class="card__cost">3</div><div class="card__civ civ-nature">自</div></div><div class="card__name">ジオブリード</div><div class="card__bottom"><span>C</span><span class="card__pow">3000</span></div></div>
+            </div></div>
+            <div style="font-size:10px;color:var(--faint)">シールド（5）</div>
+            <div class="shieldrow"><div class="scard"></div><div class="scard"></div><div class="scard"></div><div class="scard"></div><div class="scard"></div></div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel panel--after">
+      <div class="panel__cap">改善後</div>
+      <div class="battlemain">
+        <div class="side side--opp is-dimmed">
+          <div class="side__head"><span class="side__name"><span class="seatdot seatdot--p2"></span>P2</span><span class="side__deckname">白単フェアリー</span><span class="spacer"></span><span class="clock">累計 12:40</span></div>
+          <div class="side__body"><div class="side__rail">
+            <div class="obj"><span class="obj__name">山札</span><span class="obj__cnt">34</span><div class="obj__prev"><div class="deckstack"><i></i><i></i><i></i></div></div></div>
+            <div class="obj"><span class="obj__name">マナ</span><span class="obj__cnt">5</span><div class="obj__prev"><div class="mana"><i class="civ-light"></i><i class="civ-light"></i><i class="tap civ-water"></i><i class="tap civ-light"></i><i class="civ-nature"></i></div></div><div class="obj__sub">タップ2 / アンタップ3</div></div>
+            <div class="obj"><span class="obj__name">墓地</span><span class="obj__cnt">3</span><div class="obj__prev"><div class="grave"><i></i><i><span class="civdot" style="background:#cbb24a"></span></i><i></i></div></div></div>
+          </div><div class="side__main">
+            <div class="side__shields"><div style="font-size:10px;color:var(--faint)">シールド（5）伏せ</div><div class="shieldrow"><div class="scard"></div><div class="scard"></div><div class="scard"></div><div class="scard"></div><div class="scard"></div></div></div>
+            <div class="bz"><div class="bz__label">バトルゾーン（1）</div><div class="bz__empty">バトルゾーン</div><div class="bz__cards"><div class="card"><div class="card__top"><div class="card__cost">4</div><div class="card__civ civ-light">光</div></div><div class="card__name">天使</div><div class="card__bottom"><span>C</span><span class="card__pow">4000</span></div></div></div></div>
+          </div></div>
+        </div>
+        <div class="middle"><span class="middle__rule lit"></span><span class="middle__label">ターン 6 ・ P1 手番</span><span class="middle__rule lit"></span></div>
+        <div class="side side--self is-active">
+          <div class="side__head"><span class="side__name"><span class="seatdot seatdot--p1"></span>P1</span><span class="side__deckname">赤緑モルト</span><span class="side__active-pin">手番</span><span class="spacer"></span><span class="clock">累計 09:55</span></div>
+          <div class="side__body"><div class="side__rail">
+            <div class="obj"><span class="obj__name">山札</span><span class="obj__cnt">28</span><div class="obj__prev"><div class="deckstack"><i></i><i></i><i></i></div></div></div>
+            <div class="obj drop"><span class="obj__name">マナ</span><span class="obj__cnt">6</span><div class="obj__prev"><div class="mana"><i class="tap civ-fire"></i><i class="tap civ-nature"></i><i class="tap civ-fire"></i><i class="tap civ-nature"></i><i class="civ-fire"></i><i class="civ-nature"></i></div></div><div class="obj__sub">タップ4 / アンタップ2</div></div>
+            <div class="obj"><span class="obj__name">墓地</span><span class="obj__cnt">7</span><div class="obj__prev"><div class="grave"><i><span class="civdot" style="background:#c0392b"></span></i><i></i><i><span class="civdot" style="background:#3c8a4e"></span></i></div></div></div>
+          </div><div class="side__main">
+            <div class="bz drop drop__ghost"><div class="bz__label">バトルゾーン（2）</div><div class="bz__empty">バトルゾーン</div><div class="bz__cards">
+              <div class="card"><div class="card__top"><div class="card__cost">7</div><div class="card__civ civ-fire">火</div></div><div class="card__name">モルト</div><div class="card__bottom"><span>ドラゴン</span><span class="card__pow">7000</span></div></div>
+              <div class="card is-selected"><div class="card__top"><div class="card__cost">3</div><div class="card__civ civ-nature">自</div></div><div class="card__name">ジオブリード</div><div class="card__bottom"><span>C</span><span class="card__pow">3000</span></div></div>
+              <div class="card is-tapped"><div class="card__top"><div class="card__cost">2</div><div class="card__civ civ-fire">火</div></div><div class="card__name">コッコ</div><div class="card__bottom"><span>C</span><span class="card__pow">2000</span></div></div>
+            </div></div>
+            <div class="side__shields"><div style="font-size:10px;color:var(--faint)">シールド（5）伏せ</div><div class="shieldrow"><div class="scard"></div><div class="scard"></div><div class="scard"></div><div class="scard"></div><div class="scard"></div></div></div>
+          </div></div>
+        </div>
+      </div>
+      <div style="padding:10px 12px">
+        <div class="note">手番領域は金の縦バー＋ほのかな浮上で示す。色覚に依らず位置・形でも手番が分かる（手動卓・色だけ禁止）。文字ピン「手番」は現状からの継続。</div>
+        <div class="note">選択カードだけ translateY 浮上＋フル彩度。沈め対象の子でも後勝ち順で必ず勝たせる（filter:none）。</div>
+        <div class="note">ドラッグ中は受け入れ可能なゾーンだけ金発光＋点線ゴースト。移動は既存 moveCard を呼ぶだけ＝Undo・同期に自動で乗る。受け入れ可否は ZONES の公開/非公開フラグと自分のゾーンから導く（判定UIは出さない）。</div>
+      </div>
+    </div>
+  </div>
+  <div class="legend">
+    <span><b>最前面</b> 選択／ドラッグ中カード（フル彩度・浮上）</span>
+    <span><b>中景</b> 手番領域・受け入れ可ゾーン（持ち上げ・金）</span>
+    <span><b>背景</b> 非手番側・ログ・脇ゾーン（沈める。中身は読める下限 brightness .8）</span>
+    <span><b>非公開</b> 山札・シールド・相手手札は伏せ束のまま（枚数だけ見せ表は出さない）</span>
+  </div>
+  <div class="mobile-wrap">
+    <div class="note">横向きPWA（例 844×390）想定。狭幅では左右2カラムに自分／相手を並べ、レールは横並びに畳む。タッチでは長押し→メニュー移動が主導線、ドロップ発光はマウス時の補助。</div>
+    <div class="mobile"><div class="battlemain"><div class="twocol">
+      <div class="side side--self is-active">
+        <div class="side__head"><span class="side__name"><span class="seatdot seatdot--p1"></span>P1</span><span class="side__active-pin">手番</span></div>
+        <div class="side__body"><div class="side__rail">
+          <div class="obj"><span class="obj__name">山</span><span class="obj__cnt">28</span></div>
+          <div class="obj drop"><span class="obj__name">マナ</span><span class="obj__cnt">6</span></div>
+          <div class="obj"><span class="obj__name">墓</span><span class="obj__cnt">7</span></div>
+        </div><div class="side__main"><div class="bz" style="min-height:70px"><div class="bz__empty" style="font-size:14px">BZ</div><div class="bz__cards">
+          <div class="card is-selected"><div class="card__top"><div class="card__cost">3</div><div class="card__civ civ-nature">自</div></div><div class="card__name">ジオ</div></div>
+          <div class="card is-tapped"><div class="card__top"><div class="card__cost">2</div><div class="card__civ civ-fire">火</div></div><div class="card__name">コッコ</div></div>
+        </div></div><div class="shieldrow"><div class="scard"></div><div class="scard"></div><div class="scard"></div><div class="scard"></div><div class="scard"></div></div></div></div>
+      </div>
+      <div class="side side--opp is-dimmed">
+        <div class="side__head"><span class="side__name"><span class="seatdot seatdot--p2"></span>P2</span></div>
+        <div class="side__body"><div class="side__rail">
+          <div class="obj"><span class="obj__name">山</span><span class="obj__cnt">34</span></div>
+          <div class="obj"><span class="obj__name">マナ</span><span class="obj__cnt">5</span></div>
+          <div class="obj"><span class="obj__name">墓</span><span class="obj__cnt">3</span></div>
+        </div><div class="side__main"><div class="bz" style="min-height:70px"><div class="bz__empty" style="font-size:14px">BZ</div><div class="bz__cards">
+          <div class="card"><div class="card__top"><div class="card__cost">4</div><div class="card__civ civ-light">光</div></div><div class="card__name">天使</div></div>
+        </div></div><div class="shieldrow"><div class="scard"></div><div class="scard"></div><div class="scard"></div><div class="scard"></div><div class="scard"></div></div></div></div>
+      </div>
+    </div></div></div>
+  </div>
+</body>
+</html>

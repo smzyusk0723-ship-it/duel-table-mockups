@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>leave-confirm モックアップ — 対戦中の離脱に確認</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root{
+    --bg0:#16130e; --bg1:#211c14; --line:rgba(201,169,110,.22);
+    --gold:#c9a96e; --gold-hi:#d4af37; --ink:#e8e1d2; --ink2:#9a917f;
+    --card:#2c2519; --danger:#b5503f;
+  }
+  html,body{ background:
+      radial-gradient(ellipse at 50% 0%, rgba(201,169,110,.06) 0%, transparent 55%),
+      linear-gradient(180deg,#14110c 0%, #1d180f 55%, #14110c 100%);
+    color:var(--ink); font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+    min-height:100vh; }
+  body{ padding:26px 22px 50px; }
+  .wrap{ max-width:1280px; margin:0 auto; }
+  h1{ font-size:15px; font-weight:600; letter-spacing:.14em; color:var(--ink2); margin-bottom:4px; }
+  .sub{ font-size:12px; color:var(--ink2); letter-spacing:.04em; margin-bottom:22px; }
+
+  /* ── 卓フレーム（PC想定の対戦画面の縮図） ── */
+  .frame{ border:1px solid var(--line); border-radius:6px; overflow:hidden;
+    box-shadow:0 30px 60px -24px rgba(0,0,0,.7), 0 14px 30px -16px rgba(0,0,0,.6);
+    background:linear-gradient(180deg,#1c1810,#16130e); position:relative; }
+
+  /* 上部ナビ */
+  .topbar{ display:flex; align-items:center; gap:8px; padding:9px 14px;
+    background:linear-gradient(180deg,#241e15,#1a160f);
+    border-bottom:1px solid var(--line);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.04); }
+  .brand{ display:flex; align-items:center; gap:7px; font-weight:600; letter-spacing:.16em;
+    font-size:13px; color:var(--ink); cursor:pointer; position:relative; padding:3px 4px; }
+  .brand .dot{ width:7px; height:7px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #f2dca0, var(--gold)); box-shadow:0 0 8px rgba(212,175,55,.55); }
+  .nav{ display:flex; gap:6px; margin-left:14px; }
+  .spacer{ flex:1; }
+  .btn{ font:inherit; font-size:12px; color:var(--ink2); background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.07); border-radius:4px; padding:5px 11px; cursor:pointer;
+    letter-spacing:.04em; transition:.18s; position:relative; }
+  .btn:hover{ color:var(--ink); border-color:var(--line); }
+  .btn--on{ color:#1a160f; background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+    border-color:var(--gold); font-weight:600; box-shadow:0 2px 8px -2px rgba(212,175,55,.5); }
+  /* ガード対象のしるし（離脱口） */
+  .guard{ }
+  .guard::after{ content:""; position:absolute; left:6px; right:6px; bottom:-3px; height:2px;
+    background:linear-gradient(90deg,transparent,var(--gold),transparent); opacity:.0; }
+  .guard.lit::after{ opacity:.9; }
+
+  /* 盤面の縮図 */
+  .board{ position:relative; padding:14px; min-height:360px;
+    background:
+      radial-gradient(ellipse at 50% 120%, rgba(201,169,110,.07), transparent 60%),
+      repeating-linear-gradient(115deg, rgba(255,255,255,.012) 0 2px, transparent 2px 7px),
+      linear-gradient(180deg,#1a160f,#13100b); }
+  .side{ border:1px solid rgba(255,255,255,.05); border-radius:5px; padding:9px 10px; margin-bottom:10px;
+    background:linear-gradient(180deg,rgba(255,255,255,.02),transparent); }
+  .side__h{ font-size:11px; color:var(--ink2); letter-spacing:.1em; margin-bottom:7px; display:flex; align-items:center; gap:8px; }
+  .turnflag{ display:inline-flex; align-items:center; gap:5px; font-size:10px; color:var(--gold);
+    border:1px solid var(--line); border-radius:3px; padding:1px 7px; }
+  .turnflag .tri{ width:0;height:0;border-left:5px solid var(--gold);border-top:3px solid transparent;border-bottom:3px solid transparent; }
+  .zoneRow{ display:flex; gap:6px; flex-wrap:wrap; }
+  .mini{ width:30px; height:42px; border-radius:3px; border:1px solid rgba(255,255,255,.08);
+    background:linear-gradient(160deg,#3a311f,#26200f); box-shadow:0 3px 7px -3px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05); }
+  .mini.face{ background:linear-gradient(160deg,#4a3f26,#332a18); }
+  .mini.back{ background:repeating-linear-gradient(45deg,#241d12 0 4px,#2c2316 4px 8px); }
+  .mini.tap{ transform:rotate(90deg); margin:5px 9px; }
+  .mini.sel{ border-color:var(--gold); box-shadow:0 0 0 1px var(--gold), 0 0 14px rgba(212,175,55,.55); }
+  .deckstack{ position:relative; width:32px; height:44px; }
+  .deckstack span{ position:absolute; width:30px; height:42px; border-radius:3px; border:1px solid rgba(255,255,255,.06);
+    background:repeating-linear-gradient(45deg,#241d12 0 4px,#2c2316 4px 8px); }
+  .deckstack span:nth-child(1){ left:3px; top:3px; } .deckstack span:nth-child(2){ left:1.5px; top:1.5px; }
+  .lbl{ font-size:9px; color:var(--ink2); letter-spacing:.08em; margin:0 0 3px; }
+  .grp{ display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+
+  /* ── 確認ダイアログ（既存 ConfirmDialog 再現） ── */
+  .scrim{ position:absolute; inset:0; background:rgba(8,6,3,.62); backdrop-filter:blur(2px);
+    display:flex; align-items:center; justify-content:center; }
+  .dialog{ width:430px; max-width:88%; border:1px solid var(--line); border-radius:7px; overflow:hidden;
+    background:linear-gradient(180deg,#241e15,#19140d);
+    box-shadow:0 40px 80px -28px rgba(0,0,0,.85), 0 18px 36px -18px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05); }
+  .dialog__h{ padding:11px 16px; font-size:12px; letter-spacing:.12em; color:var(--ink2);
+    border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  .dialog__h .x{ color:var(--ink2); font-size:13px; }
+  .dialog__b{ padding:18px 16px 16px; font-size:13.5px; line-height:1.75; color:var(--ink); }
+  .dialog__b .note{ display:block; margin-top:7px; font-size:11.5px; color:var(--ink2); }
+  .dialog__f{ display:flex; justify-content:flex-end; gap:10px; padding:12px 16px 15px; border-top:1px solid rgba(255,255,255,.05); }
+  .b2{ font:inherit; font-size:12.5px; padding:8px 18px; border-radius:5px; cursor:pointer; letter-spacing:.06em; }
+  .b2--cancel{ color:var(--ink2); background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.09); }
+  .b2--accent{ color:#1a160f; font-weight:600; border:1px solid var(--gold);
+    background:linear-gradient(180deg,var(--gold-hi),var(--gold)); box-shadow:0 3px 10px -3px rgba(212,175,55,.6); }
+  .b2--danger{ color:#fff; font-weight:600; border:1px solid #d06a58;
+    background:linear-gradient(180deg,#c2604c,var(--danger)); box-shadow:0 3px 10px -3px rgba(181,80,63,.6); }
+
+  /* レイアウト: 2状態を並べる */
+  .cases{ display:grid; grid-template-columns:1fr; gap:26px; margin-top:8px; }
+  .case__t{ font-size:12px; color:var(--gold); letter-spacing:.08em; margin:0 0 8px; display:flex; gap:8px; align-items:center; }
+  .case__t .n{ width:18px;height:18px;border:1px solid var(--line);border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:var(--ink2); }
+
+  /* キャプション */
+  .cap{ position:absolute; font-size:10.5px; line-height:1.5; color:var(--ink2);
+    border-left:2px solid var(--gold); padding:3px 0 3px 8px; max-width:230px; background:rgba(20,16,11,.55); }
+
+  /* 凡例 */
+  .legend{ display:flex; gap:18px; flex-wrap:wrap; margin:14px 0 22px; font-size:11px; color:var(--ink2); }
+  .legend i{ display:inline-block; width:22px; height:0; border-top:2px solid var(--gold); vertical-align:middle; margin-right:6px; }
+  .legend .chip{ display:inline-flex; align-items:center; gap:6px; }
+
+  /* スマホ横の縮図 */
+  .pwa{ width:422px; height:195px; border:1px solid var(--line); border-radius:8px; overflow:hidden; position:relative;
+    background:linear-gradient(180deg,#1c1810,#14110c); box-shadow:0 20px 40px -20px rgba(0,0,0,.7); }
+  .pwa .topbar{ padding:5px 9px; }
+  .pwa .btn{ font-size:10px; padding:3px 7px; }
+  .pwa .brand{ font-size:10px; letter-spacing:.1em; }
+  .pwa .board{ min-height:0; height:100%; padding:8px; }
+  .pwa .mini{ width:20px;height:28px; }
+  .pwa .dialog{ width:300px; }
+  .pwa .dialog__b{ font-size:11px; padding:12px; line-height:1.6; }
+  .pwa .dialog__h{ font-size:10px; padding:8px 11px; }
+  .pwa .b2{ font-size:11px; padding:6px 13px; }
+  .pwarow{ display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap; margin-top:6px; }
+  .pwarow .meta{ font-size:11px; color:var(--ink2); line-height:1.7; max-width:330px; }
+  .pwarow .meta b{ color:var(--gold); font-weight:600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>leave-confirm — 対戦中の離脱に確認</h1>
+  <div class="sub">既存 ConfirmDialog（暗い卓トーン・ゴールド）を再利用。新UIは作らない。離脱口を全部ガードし、未開始・初手は素通り。</div>
+
+  <div class="legend">
+    <span class="chip"><i></i> ゴールド下線 = ガードする離脱口（battle×進行ありで確認）</span>
+    <span class="chip"><span style="display:inline-block;width:12px;height:12px;border:1px solid var(--gold);border-radius:50%;box-shadow:0 0 8px rgba(212,175,55,.5)"></span> 選択中カード = 進行あり(dirty)の根拠</span>
+  </div>
+
+  <div class="cases">
+
+    <!-- CASE A: 離脱確認（dirtyあり・ホーム押下） -->
+    <div>
+      <div class="case__t"><span class="n">A</span> 進行中に「ホーム」を押す → 離脱確認（danger:false＝ゴールド。盤面は消えない）</div>
+      <div class="frame">
+        <div class="topbar">
+          <span class="brand guard lit"><span class="dot"></span> DUEL TABLE</span>
+          <div class="nav">
+            <button class="btn guard lit">ホーム</button>
+            <button class="btn btn--on">対戦</button>
+            <button class="btn guard lit">2ピック</button>
+            <button class="btn guard lit">デッキ</button>
+            <button class="btn guard lit">オンライン</button>
+          </div>
+          <span class="spacer"></span>
+          <button class="btn guard lit">カードDB</button>
+          <button class="btn guard lit">管理</button>
+          <button class="btn">設定</button>
+        </div>
+        <div class="board">
+          <div class="side">
+            <div class="side__h">相手（プレイヤー2）　手札5　シールド5</div>
+            <div class="grp">
+              <div><div class="lbl">手札</div><div class="zoneRow"><span class="mini back"></span><span class="mini back"></span><span class="mini back"></span><span class="mini back"></span><span class="mini back"></span></div></div>
+              <div><div class="lbl">シールド</div><div class="zoneRow"><span class="mini back"></span><span class="mini back"></span><span class="mini back"></span><span class="mini back"></span><span class="mini back"></span></div></div>
+              <div><div class="lbl">山札</div><div class="deckstack"><span></span><span></span></div></div>
+            </div>
+          </div>
+          <div class="side">
+            <div class="side__h">自分（プレイヤー1）<span class="turnflag"><span class="tri"></span>手番 / ターン3</span></div>
+            <div class="grp">
+              <div><div class="lbl">バトルゾーン</div><div class="zoneRow"><span class="mini face sel"></span><span class="mini face tap"></span></div></div>
+              <div><div class="lbl">マナ</div><div class="zoneRow"><span class="mini face"></span><span class="mini face"></span><span class="mini face"></span></div></div>
+              <div><div class="lbl">手札</div><div class="zoneRow"><span class="mini face"></span><span class="mini face"></span><span class="mini face"></span></div></div>
+            </div>
+          </div>
+
+          <!-- 確認ダイアログ -->
+          <div class="scrim">
+            <div class="dialog">
+              <div class="dialog__h"><span>確認</span><span class="x">×</span></div>
+              <div class="dialog__b">
+                対戦の途中です。対戦画面から離れますか？
+                <span class="note">盤面は保持され、あとで「対戦」から戻れます。</span>
+              </div>
+              <div class="dialog__f">
+                <button class="b2 b2--cancel">キャンセル</button>
+                <button class="b2 b2--accent">離れる</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="cap" style="right:14px; top:120px;">なぜ danger:false（ゴールド）か：<br>離脱しても game は localStorage に残り消えない。本当に消す操作ではないので赤を使わず、意味はラベル「離れる/キャンセル」で伝える（色のみ依存を避ける）。</div>
+          <div class="cap" style="left:14px; bottom:14px;">なぜ確認が出るか：<br>turn≥2 もしくは move/tap 等のプレイ操作ログが1件以上＝dirty。タップ済みカード・選択中カードがその根拠。サイコロ等の info ログは除外し dirty にしない。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CASE B: 新規上書き（danger:true） + 素通りの注記 -->
+    <div>
+      <div class="case__t"><span class="n">B</span> 対戦中に「新規」を押す → 上書き警告（danger:true＝赤。今度は本当に盤面が消える）</div>
+      <div class="frame">
+        <div class="topbar">
+          <span class="brand guard lit"><span class="dot"></span> DUEL TABLE</span>
+          <div class="nav">
+            <button class="btn guard lit">ホーム</button>
+            <button class="btn btn--on">対戦</button>
+            <button class="btn guard lit">2ピック</button>
+            <button class="btn guard lit">デッキ</button>
+            <button class="btn guard lit">オンライン</button>
+          </div>
+          <span class="spacer"></span>
+          <button class="btn guard lit" style="border-color:var(--gold);color:var(--ink);">新規</button>
+          <button class="btn guard lit">カードDB</button>
+          <button class="btn">設定</button>
+        </div>
+        <div class="board" style="min-height:300px;">
+          <div class="side">
+            <div class="side__h">自分（プレイヤー1）<span class="turnflag"><span class="tri"></span>手番 / ターン4</span></div>
+            <div class="grp">
+              <div><div class="lbl">バトルゾーン</div><div class="zoneRow"><span class="mini face"></span><span class="mini face tap"></span><span class="mini face"></span></div></div>
+              <div><div class="lbl">マナ</div><div class="zoneRow"><span class="mini face"></span><span class="mini face"></span><span class="mini face"></span><span class="mini face"></span></div></div>
+              <div><div class="lbl">墓地</div><div class="zoneRow"><span class="mini face"></span><span class="mini face"></span></div></div>
+            </div>
+          </div>
+
+          <div class="scrim">
+            <div class="dialog">
+              <div class="dialog__h"><span>確認</span><span class="x">×</span></div>
+              <div class="dialog__b">
+                対戦中です。新しい対戦を始めると今の盤面は失われます。続けますか？
+                <span class="note">「新規」は現在の対戦を上書きします（離脱と違い、戻せません）。</span>
+              </div>
+              <div class="dialog__f">
+                <button class="b2 b2--cancel">キャンセル</button>
+                <button class="b2 b2--danger">新しく始める</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="cap" style="right:14px; top:96px;">なぜ「新規」だけ赤（danger:true）か：<br>下書きが見落としていた最大の穴。newGame() は現対戦を本当に破壊上書きする＝離脱より危険。離脱（ゴールド）と意味を色＋ラベルで分ける。</div>
+          <div class="cap" style="left:14px; bottom:14px;">素通りする場合（邪魔しない）：<br>対戦開始直後で1手も動かしていない＝dirty=false なら、どの離脱口を押しても確認ゼロで即遷移。設定OFFでも常に即遷移。</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 横向きPWA -->
+  <div style="margin-top:30px;">
+    <div class="case__t"><span class="n">PWA</span> 横向きPWA（約844×390の縮図）— 画面端の誤タッチでナビを叩く事故をこの確認が救う</div>
+    <div class="pwarow">
+      <div class="pwa">
+        <div class="topbar">
+          <span class="brand guard lit"><span class="dot"></span> DUEL TABLE</span>
+          <div class="nav">
+            <button class="btn guard lit">ホーム</button>
+            <button class="btn btn--on">対戦</button>
+            <button class="btn guard lit">デッキ</button>
+          </div>
+          <span class="spacer"></span>
+          <button class="btn">設定</button>
+        </div>
+        <div class="board">
+          <div class="zoneRow" style="margin-bottom:6px;"><span class="mini back"></span><span class="mini back"></span><span class="mini back"></span><span class="mini back"></span></div>
+          <div class="zoneRow"><span class="mini face sel"></span><span class="mini face"></span><span class="mini face"></span></div>
+          <div class="scrim">
+            <div class="dialog">
+              <div class="dialog__h"><span>確認</span><span class="x">×</span></div>
+              <div class="dialog__b">対戦の途中です。離れますか？<span class="note">盤面は保持・あとで戻れます。</span></div>
+              <div class="dialog__f">
+                <button class="b2 b2--cancel">キャンセル</button>
+                <button class="b2 b2--accent">離れる</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="meta">
+        <b>横向きPWAでの設計意図</b><br>
+        ・新規ジェスチャを足さない＝D&D主導線・長押し/右クリック（カード操作）を侵さない。<br>
+        ・ダイアログは既存 Modal 経由で横向きレイアウトの既存対応に乗る。中央寄せ・タップ標的は十分大きく確保。<br>
+        ・既存の盤面ショートカット（d/e/a/s）はダイアログ表示中は無効化（modal/confirm が立っている間は keydown を return）。受入条件14で検証。<br>
+        ・色のみ依存を避け、離脱=ゴールド「離れる」／上書き=赤「新しく始める」とラベルで意味を分離。
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

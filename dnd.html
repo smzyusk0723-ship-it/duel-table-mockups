@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DUEL TABLE — PC版ドラッグ&ドロップ 設計モック</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root{
+    --bg1:#16130e; --bg2:#211c14; --surface:#241f17; --surface2:#2c261c; --surface3:#332c20;
+    --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
+    --text:#e8e2d4; --t2:#b6ac97; --t3:#7e7563;
+    --accent:#c8a24a; --accent-soft:rgba(200,162,74,.16); --accent-glow:rgba(200,162,74,.32);
+    --shadow:0 10px 30px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.5);
+    --light:#d9c984; --fire:#c86a52; --nature:#6fa472; --dark:#7d6f93; --water:#5a8fc7;
+  }
+  html,body{ background:
+      radial-gradient(120% 90% at 50% -10%, #2a2417 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg1), var(--bg2));
+    color:var(--text); font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    min-height:100vh; -webkit-font-smoothing:antialiased; }
+  body::before{ content:""; position:fixed; inset:0; pointer-events:none; opacity:.05; z-index:0;
+    background-image:repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.4) 3px 4px),
+                     repeating-linear-gradient(90deg,transparent 0 3px,rgba(255,255,255,.3) 3px 4px);
+    mix-blend-mode:overlay; }
+  .wrap{ position:relative; z-index:1; max-width:1280px; margin:0 auto; padding:18px 22px 60px; }
+
+  .topbar{ display:flex; align-items:center; gap:14px; padding:10px 14px; border:1px solid var(--line);
+    background:linear-gradient(180deg,var(--surface2),var(--surface)); border-radius:8px; box-shadow:var(--shadow); }
+  .brand{ display:flex; align-items:center; gap:9px; font-size:15px; letter-spacing:.14em; font-weight:600; }
+  .brand .dot{ width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 9px var(--accent); }
+  .turnpill{ margin-left:6px; font-size:12px; color:var(--accent); border:1px solid var(--accent); border-radius:999px; padding:2px 11px; letter-spacing:.08em; }
+  .topbar .sp{ flex:1; }
+  .hint{ font-size:12px; color:var(--t3); }
+  .hint b{ color:var(--t2); font-weight:600; }
+
+  .legend{ display:flex; gap:20px; align-items:center; margin:14px 2px 4px; flex-wrap:wrap; }
+  .legend .item{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--t2); }
+  .sw{ width:26px; height:18px; border-radius:4px; border:1px solid var(--line2); flex:0 0 auto; }
+  .sw.ok{ border-color:var(--accent); box-shadow:inset 0 0 12px var(--accent-soft); }
+  .sw.deny{ opacity:.5; background-image:repeating-linear-gradient(45deg,transparent 0 4px,rgba(0,0,0,.35) 4px 8px); }
+  .sw.drag{ border:1px dashed var(--accent); opacity:.45; }
+
+  .board{ margin-top:14px; display:flex; flex-direction:column; gap:10px; }
+  .side{ border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    background:linear-gradient(180deg, rgba(255,255,255,.018), transparent); position:relative; }
+  .side.active{ box-shadow:inset 0 0 0 1px var(--accent-soft); }
+  .side__head{ display:flex; align-items:center; gap:10px; margin-bottom:9px; font-size:13px; }
+  .seat{ width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+  .seat.p1{ background:var(--water); } .seat.p2{ background:var(--fire); }
+  .deckname{ color:var(--t3); font-size:12px; }
+  .pin{ font-size:11px; color:var(--accent); border:1px solid var(--accent); border-radius:999px; padding:1px 9px; }
+  .side__body{ display:flex; gap:12px; align-items:flex-start; }
+
+  .rail{ display:flex; flex-direction:column; gap:7px; width:118px; flex:0 0 auto; }
+  .zonechip{ position:relative; border:1px solid var(--line); border-radius:8px; padding:8px 9px; background:var(--surface);
+    transition:border-color .12s, box-shadow .12s, opacity .12s; }
+  .zonechip .zn{ font-size:12px; color:var(--t2); display:flex; justify-content:space-between; align-items:center; }
+  .zonechip .cnt{ font-size:20px; font-weight:600; margin-top:2px; letter-spacing:.02em; }
+  .zonechip .sub{ font-size:10px; color:var(--t3); margin-top:1px; }
+  .zonechip .open{ position:absolute; top:7px; right:8px; font-size:10px; color:var(--t3); }
+  .deckstack{ position:relative; }
+  .deckstack::after{ content:""; position:absolute; inset:0; border-radius:8px; pointer-events:none;
+    box-shadow:3px 3px 0 -1px var(--surface3), 6px 6px 0 -2px var(--surface2); z-index:-1; }
+
+  .main{ flex:1; display:flex; flex-direction:column; gap:9px; min-width:0; }
+  .zonebox{ border:1px solid var(--line); border-radius:9px; padding:8px 10px; background:rgba(0,0,0,.14); transition:border-color .12s, box-shadow .12s, opacity .12s; position:relative; }
+  .zonebox__label{ font-size:11px; color:var(--t3); margin-bottom:7px; letter-spacing:.04em; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; min-height:64px; }
+  .row.scroll{ flex-wrap:nowrap; overflow-x:auto; }
+
+  .shieldrow{ display:flex; gap:6px; }
+  .shieldcard{ width:34px; height:48px; border-radius:4px; border:1px solid var(--line2);
+    background:repeating-linear-gradient(135deg,#2b2519 0 4px,#241f17 4px 8px);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 2px 5px rgba(0,0,0,.5); position:relative; }
+  .shieldcard::after{ content:""; position:absolute; inset:5px; border:1px solid rgba(200,162,74,.18); border-radius:2px; }
+
+  .card{ width:74px; height:104px; border-radius:6px; border:1px solid var(--line2); position:relative;
+    background:linear-gradient(160deg,var(--surface3),var(--surface)); box-shadow:var(--shadow);
+    display:flex; flex-direction:column; overflow:hidden; flex:0 0 auto; cursor:grab; transition:transform .12s, box-shadow .12s, opacity .12s; }
+  .card.lg{ width:84px; height:118px; }
+  .card .top{ display:flex; justify-content:space-between; padding:4px 5px 0; }
+  .card .cost{ font-size:13px; font-weight:700; color:#f0ead8; text-shadow:0 1px 2px #000; }
+  .card .civ{ width:16px; height:16px; border-radius:3px; font-size:9px; display:flex; align-items:center; justify-content:center; color:#0c0c0c; font-weight:700; }
+  .card .nm{ font-size:9px; line-height:1.25; padding:4px 5px; color:var(--text); flex:1; }
+  .card .bt{ display:flex; justify-content:space-between; padding:0 5px 4px; font-size:8px; color:var(--t3); align-items:flex-end; }
+  .card .pw{ font-size:11px; font-weight:700; color:#f0ead8; }
+  .card .strip{ height:3px; }
+  .card.civ-light .strip{ background:var(--light);} .card.civ-fire .strip{ background:var(--fire);}
+  .card.civ-water .strip{ background:var(--water);}
+  .card.tapped{ transform:rotate(86deg) scale(.9); }
+  .card.selected{ outline:2px solid var(--accent); outline-offset:1px; box-shadow:0 0 0 2px var(--accent-soft), var(--shadow); }
+  .empty{ font-size:11px; color:var(--t3); padding:14px 6px; }
+
+  .card.dragging{ opacity:.35; outline:1px dashed var(--accent); cursor:grabbing; }
+  .is-droptarget{ border-color:var(--accent) !important;
+    box-shadow:inset 0 0 26px var(--accent-soft), 0 0 16px var(--accent-glow) !important; }
+  .is-dropdenied{ opacity:.42;
+    background-image:repeating-linear-gradient(45deg,transparent 0 6px,rgba(0,0,0,.28) 6px 12px); }
+  .drophint{ position:absolute; top:6px; right:9px; font-size:10px; color:var(--accent); letter-spacing:.05em;
+    pointer-events:none; display:flex; align-items:center; gap:3px; }
+  .drophint .tri{ width:0;height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid var(--accent); }
+
+  .ghost{ position:absolute; left:920px; top:84px; width:84px; height:118px; border-radius:6px;
+    border:1px solid var(--accent); transform:rotate(3deg) scale(1.12); z-index:50; pointer-events:none;
+    background:linear-gradient(160deg,#3a3324,#2c261c); box-shadow:0 18px 30px rgba(0,0,0,.65), 0 0 18px var(--accent-glow);
+    display:flex; flex-direction:column; overflow:hidden; }
+  .ghost .strip{ height:3px; background:var(--water); }
+  .ghost .top{ display:flex; justify-content:space-between; padding:5px 6px 0; }
+  .ghost .cost{ font-size:14px; font-weight:700; color:#f0ead8; }
+  .ghost .civ{ width:17px; height:17px; border-radius:3px; background:var(--water); font-size:9px; color:#0c0c0c; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .ghost .nm{ font-size:10px; padding:5px 6px; flex:1; }
+  .ghost__tag{ position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); white-space:nowrap;
+    font-size:10px; color:var(--accent); background:rgba(20,17,12,.9); border:1px solid var(--accent); border-radius:5px; padding:2px 8px; }
+  .cursor{ position:absolute; left:996px; top:156px; width:14px; height:14px; z-index:60; }
+  .cursor svg{ filter:drop-shadow(0 1px 1px #000); }
+
+  .note{ position:absolute; max-width:208px; font-size:10.5px; line-height:1.5; color:var(--t2);
+    border-left:2px solid var(--accent); padding:4px 0 4px 9px; background:rgba(20,17,12,.55); border-radius:0 4px 4px 0; }
+  .note b{ color:var(--accent); font-weight:600; }
+  .stage{ position:relative; }
+
+  .handzone{ margin-top:10px; border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:linear-gradient(180deg, rgba(255,255,255,.018), transparent); }
+  .handzone__head{ display:flex; gap:10px; align-items:center; font-size:13px; margin-bottom:8px; }
+  .badge{ font-size:11px; color:var(--t2); border:1px solid var(--line2); border-radius:999px; padding:1px 9px; }
+
+  .phone{ margin-top:34px; border-top:1px dashed var(--line2); padding-top:22px; }
+  .phone h3{ font-size:13px; letter-spacing:.06em; color:var(--t2); margin-bottom:12px; font-weight:600; }
+  .phoneframe{ width:520px; max-width:100%; height:240px; border:1px solid var(--line2); border-radius:14px; padding:10px;
+    background:linear-gradient(180deg,var(--bg1),var(--bg2)); box-shadow:var(--shadow); position:relative; overflow:hidden; }
+  .phoneframe .pf__board{ display:flex; gap:8px; height:152px; }
+  .phoneframe .pf__rail{ width:54px; display:flex; flex-direction:column; gap:5px; }
+  .pf__chip{ border:1px solid var(--line); border-radius:5px; padding:4px; font-size:8px; color:var(--t3); text-align:center; background:var(--surface); }
+  .pf__chip .c{ font-size:13px; color:var(--t2); font-weight:600; }
+  .pf__main{ flex:1; border:1px solid var(--line); border-radius:6px; background:rgba(0,0,0,.14); padding:5px; display:flex; gap:5px; flex-wrap:wrap; align-content:flex-start; }
+  .pf__card{ width:30px; height:42px; border-radius:3px; border:1px solid var(--line2); background:linear-gradient(160deg,var(--surface3),var(--surface)); flex:0 0 auto; }
+  .pf__card.sel{ outline:1.5px solid var(--accent); }
+  .pf__bar{ position:absolute; left:10px; right:10px; bottom:10px; height:48px; border:1px solid var(--accent); border-radius:8px;
+    background:var(--accent-soft); display:flex; gap:5px; align-items:center; padding:0 8px; }
+  .pf__btn{ flex:1; text-align:center; font-size:10px; color:var(--accent); border:1px solid var(--accent); border-radius:5px; padding:8px 0; background:rgba(20,17,12,.4); }
+  .pf__btn b{ display:block; font-size:8px; color:var(--t3); font-weight:400; margin-top:2px; }
+  .pf__cap{ font-size:10.5px; color:var(--t2); max-width:520px; line-height:1.55; margin-top:10px; }
+  .pf__cap b{ color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <span class="brand"><span class="dot"></span>DUEL TABLE</span>
+    <span class="turnpill">手番 P1 / ターン3</span>
+    <span class="sp"></span>
+    <span class="hint"><b>つまんで離す＝移動</b>　右クリック＝操作メニュー（保険）</span>
+  </div>
+
+  <div class="legend">
+    <span class="item"><span class="sw ok"></span> ドロップ可能（金縁＋発光＋「ここへ↓」）</span>
+    <span class="item"><span class="sw deny"></span> ドロップ不可（沈む＋斜線）</span>
+    <span class="item"><span class="sw drag"></span> つかんだ元の位置（破線で残す）</span>
+  </div>
+
+  <div class="stage">
+
+    <div class="board">
+      <div class="side">
+        <div class="side__head"><span class="seat p2"></span>プレイヤー2<span class="deckname">火自然ビート</span></div>
+        <div class="side__body">
+          <div class="rail">
+            <div class="zonechip deckstack"><span class="open">開く ▸</span><div class="zn">山札</div><div class="cnt">28</div></div>
+            <div class="zonechip"><span class="open">開く ▸</span><div class="zn">マナ</div><div class="cnt">5</div><div class="sub">タップ 2 / アンタップ 3</div></div>
+            <div class="zonechip"><span class="open">開く ▸</span><div class="zn">墓地</div><div class="cnt">3</div></div>
+          </div>
+          <div class="main">
+            <div class="zonebox"><div class="zonebox__label">シールド（5）▸</div>
+              <div class="shieldrow">
+                <div class="shieldcard"></div><div class="shieldcard"></div><div class="shieldcard"></div><div class="shieldcard"></div><div class="shieldcard"></div>
+              </div>
+            </div>
+            <div class="zonebox"><div class="zonebox__label">バトルゾーン（1）</div>
+              <div class="row">
+                <div class="card civ-fire"><div class="strip"></div><div class="top"><span class="cost">4</span><span class="civ" style="background:var(--fire)">火</span></div><div class="nm">クラッシュ・バンディット</div><div class="bt"><span>クリーチャー</span><span class="pw">4000</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="side active">
+        <div class="side__head"><span class="seat p1"></span>プレイヤー1<span class="deckname">光水コントロール</span><span class="pin">手番</span></div>
+        <div class="side__body">
+          <div class="rail">
+            <div class="zonechip deckstack is-droptarget">
+              <span class="open">開く ▸</span><div class="zn">山札</div><div class="cnt">25</div>
+              <div class="drophint"><span class="tri"></span>山札の上へ</div>
+            </div>
+            <div class="zonechip is-droptarget">
+              <span class="open">開く ▸</span><div class="zn">マナ</div><div class="cnt">6</div><div class="sub">タップ 1 / アンタップ 5</div>
+              <div class="drophint"><span class="tri"></span>ここへ</div>
+            </div>
+            <div class="zonechip is-droptarget">
+              <span class="open">開く ▸</span><div class="zn">墓地</div><div class="cnt">2</div>
+              <div class="drophint"><span class="tri"></span>ここへ</div>
+            </div>
+          </div>
+          <div class="main">
+            <div class="zonebox is-dropdenied"><div class="zonebox__label">シールド（5）▸　ドラッグ対象外</div>
+              <div class="shieldrow">
+                <div class="shieldcard"></div><div class="shieldcard"></div><div class="shieldcard"></div><div class="shieldcard"></div><div class="shieldcard"></div>
+              </div>
+            </div>
+            <div class="zonebox is-droptarget"><div class="zonebox__label">バトルゾーン（2）</div>
+              <div class="drophint"><span class="tri"></span>ここへ置く</div>
+              <div class="row">
+                <div class="card civ-water"><div class="strip"></div><div class="top"><span class="cost">3</span><span class="civ" style="background:var(--water)">水</span></div><div class="nm">アクア・ガード</div><div class="bt"><span>クリーチャー</span><span class="pw">2000</span></div></div>
+                <div class="card civ-light tapped"><div class="strip"></div><div class="top"><span class="cost">5</span><span class="civ" style="background:var(--light)">光</span></div><div class="nm">天門のルナ</div><div class="bt"><span>クリーチャー</span><span class="pw">5500</span></div></div>
+                <div class="empty">空き枠もここへ</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="handzone">
+      <div class="handzone__head"><span class="seat p1"></span>自分の手札<span class="badge">4枚</span><span class="badge">表示中</span></div>
+      <div class="row scroll" style="position:relative">
+        <div class="card lg civ-light"><div class="strip"></div><div class="top"><span class="cost">2</span><span class="civ" style="background:var(--light)">光</span></div><div class="nm">ホーリー・スパーク</div><div class="bt"><span>呪文</span><span class="pw"></span></div></div>
+        <div class="card lg civ-water dragging"><div class="strip"></div><div class="top"><span class="cost">6</span><span class="civ" style="background:var(--water)">水</span></div><div class="nm">アクアン・メルカトール</div><div class="bt"><span>クリーチャー</span><span class="pw">6000</span></div></div>
+        <div class="card lg civ-light"><div class="strip"></div><div class="top"><span class="cost">4</span><span class="civ" style="background:var(--light)">光</span></div><div class="nm">パーフェクト・ギャラクシー</div><div class="bt"><span>クリーチャー</span><span class="pw">12500</span></div></div>
+        <div class="card lg civ-water selected"><div class="strip"></div><div class="top"><span class="cost">3</span><span class="civ" style="background:var(--water)">水</span></div><div class="nm">エナジー・ライト</div><div class="bt"><span>呪文</span><span class="pw"></span></div></div>
+      </div>
+    </div>
+
+    <div class="ghost">
+      <div class="strip"></div>
+      <div class="top"><span class="cost">6</span><span class="civ">水</span></div>
+      <div class="nm">アクアン・メルカトール</div>
+      <div class="ghost__tag">バトルゾーンへ ↓</div>
+    </div>
+    <div class="cursor">
+      <svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 2 L2 16 L6 12 L9 18 L12 17 L9 11 L15 11 Z" fill="#f0ead8" stroke="#000" stroke-width="1"/></svg>
+    </div>
+
+    <div class="note" style="left:-2px; top:250px;">
+      <b>色だけに頼らない</b><br>可ゾーン＝金縁(形)＋発光(色)＋「ここへ↓」(ラベル)＋三角(向き)。不可＝斜線＋沈み。文明色と混同しない。
+    </div>
+    <div class="note" style="right:-2px; top:20px;">
+      <b>ゴーストは正立・拡大</b><br>タップ済み(90度回転)でもつかむ間は読みやすく正立。離した後の盤面状態は一切変えない。裏向きは裏のまま運ぶ。
+    </div>
+    <div class="note" style="right:-2px; top:178px;">
+      <b>山札は上下を出し分け</b><br>束の上半分にホバー＝上へ／下半分＝下へ。ラベルが追従して落下先を明示。
+    </div>
+    <div class="note" style="left:-2px; top:582px;">
+      <b>確定は moveCard 1回だけ</b><br>無効/画面外で離せば store を触らず元へ戻す＝ログもUndo履歴も増えない。右クリックメニューは保険として全機能を温存。
+    </div>
+  </div>
+
+  <div class="phone">
+    <h3>スマホ横（約844×390）— ドラッグは使わない。タップ選択→大ボタンが主導線</h3>
+    <div class="phoneframe">
+      <div class="pf__board">
+        <div class="pf__rail">
+          <div class="pf__chip">山札<div class="c">25</div></div>
+          <div class="pf__chip">マナ<div class="c">6</div></div>
+          <div class="pf__chip">墓地<div class="c">2</div></div>
+        </div>
+        <div class="pf__main">
+          <div class="pf__card"></div><div class="pf__card sel"></div><div class="pf__card"></div>
+          <div class="pf__card"></div><div class="pf__card"></div>
+        </div>
+      </div>
+      <div class="pf__bar">
+        <div class="pf__btn">マナへ</div>
+        <div class="pf__btn">バトルへ</div>
+        <div class="pf__btn">墓地へ</div>
+        <div class="pf__btn">山札の上<b>/下</b></div>
+      </div>
+    </div>
+    <div class="pf__cap">
+      <b>なぜドラッグを切るか:</b> スマホ横はPCと別レイアウトではなく同じ画面の縮小表示。指でカードと行先が隠れ誤爆しやすいため、横向きPWAではタップで1枚選択 → 画面下の大きな行先ボタンで移動する（既存の選択バーを主導線として残す）。HTML5 dndはそもそもタッチで発火しない。
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
