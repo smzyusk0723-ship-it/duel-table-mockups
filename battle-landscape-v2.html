@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DUEL TABLE スマホ横 対戦 専用設計 v2（Q1〜6反映）</title>
+<style>
+:root{
+  --bg:#14110c; --bg2:#1d1810; --ink:#e8e0d2; --ink2:#b6ab97; --ink3:#857c6b;
+  --gold:#c9a96e; --gold2:#d8b876; --line:rgba(201,169,110,.22);
+  --p-self:#5a8fc7; --p-opp:#c8694f;
+  --felt1:#1a2620; --felt2:#13201a; --felt-edge:rgba(201,169,110,.14);
+  --card:#243042; --card2:#2c3a4f;
+}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:radial-gradient(ellipse at 50% -10%,#241d12 0%,var(--bg) 55%),var(--bg);color:var(--ink);
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI",system-ui,sans-serif;line-height:1.6;padding:0 0 90px}
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+header{padding:54px 0 18px;border-bottom:1px solid var(--line)}
+.kick{letter-spacing:.34em;font-size:11px;color:var(--gold);text-transform:uppercase}
+h1{font-family:"Hiragino Mincho ProN",serif;font-weight:500;font-size:27px;letter-spacing:.03em;margin:12px 0 6px}
+.sub{color:var(--ink2);font-size:14px;max-width:860px}
+.tag{display:inline-block;font-size:11px;color:#1a140c;background:var(--gold);border-radius:10px;padding:2px 9px;margin-left:8px;vertical-align:middle;letter-spacing:.05em}
+.budget{display:flex;gap:18px;flex-wrap:wrap;margin:16px 0 0;font-size:12px;color:var(--ink2)}
+.budget b{color:var(--gold);font-weight:600}
+h2{font-family:"Hiragino Mincho ProN",serif;font-weight:500;font-size:18px;margin:44px 0 4px;letter-spacing:.04em}
+.h2note{color:var(--ink3);font-size:12.5px;margin:0 0 16px;max-width:860px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--ink3);margin-top:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+
+.stage{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start}
+.dev-col{flex:1 1 880px}
+.frame-label{font-size:12px;color:var(--gold);letter-spacing:.14em;margin:0 0 8px;text-transform:uppercase}
+.phone{position:relative;width:844px;height:390px;border:9px solid #0a0a0a;border-radius:26px;
+  background:linear-gradient(160deg,var(--felt1),var(--felt2));overflow:hidden;
+  box-shadow:0 30px 60px -24px #000,0 14px 30px -16px #000, inset 0 1px 0 rgba(255,255,255,.04)}
+@media(max-width:920px){.phone{transform:scale(.56);transform-origin:top left;margin-bottom:-172px}}
+.scr{position:absolute;inset:0}
+.felt{position:absolute;inset:0;background:
+  radial-gradient(ellipse at 50% 50%, rgba(201,169,110,.05), transparent 60%),
+  repeating-linear-gradient(115deg, rgba(0,0,0,.10) 0 2px, transparent 2px 5px)}
+
+/* HUD */
+.hud{position:absolute;left:0;right:0;top:0;height:28px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 8px;background:linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.04));}
+.turn{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink)}
+.dot{width:9px;height:9px;border-radius:50%}.dot.self{background:var(--p-self);box-shadow:0 0 8px rgba(90,143,199,.7)}.dot.opp{background:var(--p-opp)}
+.tri{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:7px solid var(--gold)}
+.hud-r{display:flex;gap:6px;align-items:center}
+.ico{width:26px;height:20px;border:1px solid var(--line);border-radius:5px;display:flex;align-items:center;justify-content:center;color:var(--ink2);font-size:10px;background:rgba(255,255,255,.02)}
+.timer{font-size:10px;color:var(--ink3);margin-right:2px}
+
+/* a "row" = battle cards + shields, mirrored for both players */
+.side{position:absolute;left:0;right:0;padding:3px 8px;display:flex;align-items:center;gap:9px}
+.side.opp{top:28px;height:82px;border-bottom:1px dashed rgba(200,105,79,.26);background:linear-gradient(180deg,rgba(200,105,79,.06),transparent)}
+.side.self-bz{top:114px;height:90px}
+.zlabel{writing-mode:vertical-rl;font-size:9px;letter-spacing:.2em;opacity:.9}
+.zlabel.o{color:var(--p-opp)} .zlabel.s{color:var(--p-self)}
+.bzrow{display:flex;gap:5px;align-items:center}
+.mini{width:38px;height:54px;border-radius:4px;background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid rgba(255,255,255,.07);position:relative;box-shadow:0 4px 10px -6px #000;flex:0 0 auto}
+.mini.big{width:50px;height:70px}
+.mini .c{position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;font-size:8px;color:#fff;display:flex;align-items:center;justify-content:center}
+.mini .nm{position:absolute;bottom:2px;left:2px;right:2px;font-size:6.2px;color:#cdd6e0;line-height:1.05;overflow:hidden;height:13px}
+.mini .pw{position:absolute;bottom:1px;right:2px;font-size:6.5px;color:#f3d27a;font-weight:700}
+.mini.tap{transform:rotate(86deg) scale(.9)}
+.mini.sel{border-color:var(--gold2);box-shadow:0 0 0 2px rgba(216,184,118,.5),0 8px 14px -8px #000;transform:translateY(-3px)}
+.fire{background:#a23b2c}.water{background:#2f6db0}.nat{background:#3a7d44}.light{background:#b79a3c}.dark{background:#4b3a63}
+
+/* shields shown as a small face-down row (Q1) */
+.shields{display:flex;flex-direction:column;gap:2px;align-items:center}
+.shieldlab{font-size:8px;color:var(--ink3)}
+.shieldrow{display:flex;gap:2.5px}
+.shieldrow i{width:13px;height:19px;border-radius:2.5px;background:linear-gradient(160deg,#2b3a55,#1d2740);border:1px solid rgba(255,255,255,.12);display:block;box-shadow:0 2px 4px -2px #000}
+.shieldrow.s i{background:linear-gradient(160deg,#2f4a5e,#21333f);border-color:rgba(120,170,210,.35)}
+.shieldrow i.broken{opacity:.28;border-style:dashed}
+
+/* entry chips (mana/hand/deck/grave) — tap opens contents (Q2) */
+.chips{margin-left:auto;display:flex;gap:5px;flex-wrap:wrap;max-width:300px;justify-content:flex-end}
+.chip{display:flex;align-items:center;gap:4px;padding:3px 7px;border:1px solid var(--line);border-radius:11px;font-size:10px;color:var(--ink2);background:rgba(0,0,0,.25)}
+.chip b{color:var(--ink);font-weight:600}
+
+.midline{position:absolute;left:0;right:0;top:111px;border-top:1px solid var(--felt-edge)}
+.midtag{position:absolute;top:104px;left:50%;transform:translateX(-50%);font-size:8px;color:var(--ink3);letter-spacing:.3em;background:var(--felt2);padding:0 8px}
+
+/* self zones strip: mana + own shields + deck/grave */
+.selfzones{position:absolute;left:0;right:0;top:206px;height:62px;padding:3px 8px;display:flex;align-items:center;gap:9px}
+.manarow{display:flex;gap:3px;align-items:flex-end}
+.mana{width:28px;height:40px;border-radius:4px;background:linear-gradient(160deg,#314a3a,#21321f);border:1px solid rgba(255,255,255,.08)}
+.mana.tap{transform:rotate(84deg) scale(.9);opacity:.65}
+.mana.usable{box-shadow:0 0 0 1px rgba(201,169,110,.5)}
+.zonelab{font-size:8px;color:var(--ink3);letter-spacing:.2em;margin-right:1px}
+.stack{position:relative;width:42px;height:50px;border-radius:5px;background:linear-gradient(160deg,#2b3a55,#1d2740);border:1px solid rgba(255,255,255,.1);box-shadow:2px 2px 0 -1px #14202f,4px 4px 0 -2px #101a26,0 6px 12px -8px #000;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:3px}
+.stack .lab{font-size:8px;color:var(--ink2)}.stack .n{font-size:11px;color:var(--ink);font-weight:700}
+
+/* SMALL hand (Shadowverse-style, Q6): compact by default */
+.hand{position:absolute;left:64px;right:108px;bottom:0;height:50px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px}
+.hc{width:40px;height:56px;border-radius:5px;background:linear-gradient(160deg,#3a4a66,#2a3750);border:1px solid rgba(255,255,255,.1);position:relative;margin:0 -7px;box-shadow:0 -2px 12px -6px #000;flex:0 0 auto;transition:transform .18s}
+.hc .c{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;font-size:8px;color:#fff;display:flex;align-items:center;justify-content:center}
+.hc .nm{position:absolute;bottom:2px;left:2px;right:2px;font-size:5.8px;color:#dfe6ef;height:11px;overflow:hidden;line-height:1.05}
+.handhint{position:absolute;left:50%;bottom:52px;transform:translateX(-50%);font-size:8px;color:var(--ink3)}
+
+/* thumb actions */
+.thumbL,.thumbR{position:absolute;bottom:9px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;box-shadow:0 8px 18px -8px #000}
+.thumbL{left:9px;width:50px;flex-direction:column;gap:0;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--ink);font-size:14px}
+.thumbL small{font-size:8.5px;font-weight:500}
+.thumbR{right:9px;width:96px;background:linear-gradient(180deg,#2a2a2a,#161616);border:1px solid var(--line);color:#f1e4c4;font-size:12px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 0 0 1px rgba(201,169,110,.25),0 8px 18px -8px #000}
+.thumbR .k{font-size:8px;color:var(--ink3);font-weight:500;margin-left:3px}
+.drawerTab{position:absolute;right:0;top:120px;width:17px;height:120px;border-radius:8px 0 0 8px;background:rgba(0,0,0,.4);border:1px solid var(--line);border-right:0;display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;font-size:8px;color:var(--ink2);letter-spacing:.16em}
+
+/* Shadowverse-style enlarged card pop (state 2) */
+.dim{position:absolute;inset:0;background:rgba(6,5,4,.5)}
+.popcard{position:absolute;left:50%;bottom:128px;transform:translateX(-50%);width:128px;height:178px;border-radius:9px;
+  background:linear-gradient(160deg,#3f5070,#2c3a54);border:1.5px solid var(--gold2);
+  box-shadow:0 0 0 3px rgba(216,184,118,.35),0 22px 40px -14px #000;z-index:6;overflow:hidden}
+.popcard .pc{position:absolute;top:6px;left:6px;width:26px;height:26px;border-radius:50%;font-size:14px;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.popcard .pnm{position:absolute;top:7px;left:38px;right:8px;font-size:11px;color:#fff;font-weight:700;text-shadow:0 1px 2px #000}
+.popcard .art{position:absolute;left:8px;right:8px;top:38px;height:84px;border-radius:4px;background:linear-gradient(140deg,#5a6f96,#3a4a66)}
+.popcard .txt{position:absolute;left:8px;right:8px;top:126px;font-size:7px;color:#e7edf5;line-height:1.25}
+.popcard .ppw{position:absolute;bottom:5px;left:9px;font-size:13px;color:#f3d27a;font-weight:800}
+/* action sheet */
+.sheet{position:absolute;left:0;right:0;bottom:0;height:84px;background:linear-gradient(180deg,rgba(20,17,12,.55),rgba(8,7,5,.97));
+  border-top:1px solid var(--line);padding:7px 10px 9px;display:flex;align-items:center;gap:8px;z-index:7}
+.act{flex:1;height:46px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--ink)}
+.act.primary{background:linear-gradient(180deg,#2a2a2a,#161616);color:#f1e4c4;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 0 0 1px rgba(201,169,110,.3)}
+.act.ghost{flex:0 0 58px;color:var(--ink2);font-size:11px}
+.sheet-x{flex:0 0 30px;height:46px;border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--ink2)}
+
+/* drawer (right) */
+.drawer{position:absolute;top:0;bottom:0;right:0;width:300px;background:linear-gradient(180deg,rgba(16,13,9,.97),rgba(10,8,6,.99));border-left:1px solid var(--line);padding:8px 10px;z-index:7}
+.drawer .tabs{display:flex;gap:6px;margin-bottom:8px}
+.drawer .tab{font-size:11px;padding:5px 10px;border-radius:7px;color:var(--ink2);border:1px solid var(--line)}
+.drawer .tab.on{color:#1a140c;background:var(--gold);border-color:var(--gold);font-weight:700}
+.logrow{font-size:9.5px;color:var(--ink2);padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)}.logrow b{color:var(--ink)}
+.scrim{position:absolute;inset:0 300px 0 0;background:rgba(0,0,0,.4)}
+
+.notes{margin-top:18px;display:grid;gap:9px}
+.note{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--ink2);background:var(--bg2);border:1px solid var(--line);border-left:2px solid var(--gold);border-radius:3px;padding:10px 13px}
+.note b{color:var(--ink);font-weight:600}
+.num{flex:0 0 auto;width:20px;height:20px;border-radius:50%;border:1px solid var(--gold);color:var(--gold);font-size:11px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}@media(max-width:760px){.cols{grid-template-columns:1fr}}
+.panel{background:var(--bg2);border:1px solid var(--line);border-radius:5px;padding:16px 18px}
+.panel h3{margin:0 0 10px;font-size:14px}.panel.dec h3{color:#7fae6a}.panel.q h3{color:var(--gold)}
+.panel ul{margin:0;padding-left:18px}.panel li{font-size:13px;color:var(--ink2);margin:7px 0}
+.panel.dec li b,.panel.q li b{color:var(--ink)}
+.panel.q li span{color:var(--ink3);font-size:12px}
+footer{margin-top:46px;color:var(--ink3);font-size:12px;border-top:1px solid var(--line);padding-top:16px}
+</style></head>
+<body><div class="wrap">
+
+<header>
+  <div class="kick">DUEL TABLE — Mobile Landscape · Battle · Design v2</div>
+  <h1>スマホ横「対戦」専用設計 <span class="tag">Q1〜6 反映</span></h1>
+  <p class="sub">横固定専用。1画面に全ゾーン詰め込み（Q6）。シールドは自分も相手も「伏せの小列」で見た目比較（Q1）。相手の他ゾーンは枚数チップ＝タップで中身（Q2）。操作はタップ選択→下端シート、D&Dは補助（Q4）。自分は常に下（Q5）。手札は普段小さく、触ると1枚だけ大きくポップ（Q6・シャドバ式）。設計見本＝カード画像は簡略。</p>
+  <div class="budget">
+    <span>キャンバス <b>844 × 390</b></span>
+    <span>縦配分 HUD28 / 相手82 / 自分バトル90 / 自分ゾーン62 / <b>手札50（小）</b></span>
+    <span>手札を小さく畳む＝盤面に縦を回す</span>
+  </div>
+  <div class="legend"><span><i style="background:#5a8fc7"></i>自分</span><span><i style="background:#c8694f"></i>相手</span><span><i style="background:#c9a96e"></i>操作・主導線</span></div>
+</header>
+
+<h2>① 通常時（上下ミラー・手札は小さい）</h2>
+<p class="h2note">相手（上）と自分（下）を鏡に。両者のシールドを伏せ小列で出し、枚数を見た目で比較。相手のマナ/手札/山/墓地は枚数チップ＝タップで開く入口。手札は小さい帯。主操作は下端コーナー。</p>
+<div class="stage"><div class="dev-col">
+  <div class="frame-label">844 × 390 — 通常</div>
+  <div class="phone"><div class="scr"><div class="felt"></div>
+    <div class="hud">
+      <div class="turn"><span class="dot self"></span><span class="tri"></span> <b>T4</b>&nbsp;自分の番</div>
+      <div class="hud-r"><span class="timer">02:14</span><div class="ico">戻す</div><div class="ico">≡</div><div class="ico">⤢</div></div>
+    </div>
+    <!-- opponent (top) -->
+    <div class="side opp">
+      <div class="zlabel o">相手</div>
+      <div class="bzrow">
+        <div class="mini"><span class="c fire">5</span><span class="nm">ボルメテ</span><span class="pw">6000</span></div>
+        <div class="mini tap"><span class="c nat">3</span><span class="nm">トップギア</span><span class="pw">1000</span></div>
+        <div class="mini"><span class="c water">2</span><span class="nm">害悪なり</span></div>
+      </div>
+      <div class="shields"><span class="shieldlab">シールド5</span><div class="shieldrow"><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="chips"><span class="chip">手札 <b>5</b></span><span class="chip">山 <b>30</b></span><span class="chip">墓地 <b>0</b></span><span class="chip">マナ <b>4</b></span></div>
+    </div>
+    <div class="midline"></div><div class="midtag">— 中央 —</div>
+    <!-- self battle zone -->
+    <div class="side self-bz">
+      <div class="zlabel s">自分</div>
+      <div class="bzrow">
+        <div class="mini big tap"><span class="c fire">10</span><span class="nm">スカイソード</span><span class="pw">5000</span></div>
+        <div class="mini big"><span class="c nat">3</span><span class="nm">グレンアイラ</span><span class="pw">4000</span></div>
+        <div class="mini big"><span class="c water">2</span><span class="nm">ジャスミン</span></div>
+      </div>
+      <div class="chips" style="max-width:none"><span class="chip">超次元 <b>2</b></span></div>
+    </div>
+    <!-- self zones: mana + own shields + deck/grave -->
+    <div class="selfzones">
+      <span class="zonelab">マナ</span>
+      <div class="manarow"><div class="mana usable"></div><div class="mana usable"></div><div class="mana tap"></div><div class="mana usable"></div><div class="mana usable"></div></div>
+      <div class="shields"><span class="shieldlab" style="color:var(--p-self)">自シールド4</span><div class="shieldrow s"><i></i><i></i><i></i><i></i><i class="broken"></i></div></div>
+      <div class="stack"><span class="lab">山札</span><span class="n">25</span></div>
+      <div class="stack"><span class="lab">墓地</span><span class="n">3</span></div>
+    </div>
+    <!-- small hand -->
+    <div class="handhint">手札（タップで拡大）</div>
+    <div class="hand">
+      <div class="hc"><span class="c fire">2</span><span class="nm">A・R・T</span></div>
+      <div class="hc"><span class="c nat">6</span><span class="nm">ガトラー</span></div>
+      <div class="hc"><span class="c water">10</span><span class="nm">監視者</span></div>
+      <div class="hc"><span class="c dark">7</span><span class="nm">無双竜</span></div>
+      <div class="hc"><span class="c light">5</span><span class="nm">天門</span></div>
+      <div class="hc"><span class="c fire">4</span><span class="nm">ガイギンガ</span></div>
+    </div>
+    <div class="drawerTab">ログ / デッキ / グラフ</div>
+    <div class="thumbL">＋<small>ドロー</small></div>
+    <div class="thumbR">ターン終了<span class="k">E</span></div>
+  </div></div>
+</div></div>
+<div class="notes">
+  <div class="note"><span class="num">1</span><div><b>上下ミラー＋シールド可視（Q1）。</b> 相手＝上、自分＝下。両者のシールドを伏せ小列で出し、枚数を見た目で比較できる。ブレイク済みは薄い点線。</div></div>
+  <div class="note"><span class="num">2</span><div><b>相手の他ゾーンはチップ＝入口（Q2）。</b> 手札/山/墓地/マナはタップで中身オーバーレイ（非公開は枚数のみ／自分のは中身可）。常時の数字で場を把握。</div></div>
+  <div class="note"><span class="num">3</span><div><b>手札は小さく畳む（Q6）。</b> 普段は薄い帯。縦を盤面に回せる。主操作は親指コーナー（左ドロー／右ターン終了）。</div></div>
+  <div class="note"><span class="num">4</span><div><b>マナの可否を見せる。</b> 使えるマナは金の細枠、タップ済みは寝かせて薄く。色だけに頼らない。</div></div>
+</div>
+
+<h2>② 手札を触ったとき（シャドバ式・1枚だけ拡大）</h2>
+<p class="h2note">手札の1枚をタップ→そのカードが大きくポップして読める（効果まで確認）＋下端にアクションシート（44px以上）。盤面は軽く沈む。離すと元の小さい帯に戻る。誤プレイ防止に「拡大＝まだ確定じゃない／シートのボタンで確定」。</p>
+<div class="stage"><div class="dev-col">
+  <div class="frame-label">844 × 390 — 手札タップ（拡大＋シート）</div>
+  <div class="phone"><div class="scr"><div class="felt"></div>
+    <div class="hud"><div class="turn"><span class="dot self"></span><span class="tri"></span> <b>T4</b>&nbsp;自分の番</div><div class="hud-r"><div class="ico">≡</div><div class="ico">⤢</div></div></div>
+    <div class="side opp" style="height:70px">
+      <div class="zlabel o">相手</div>
+      <div class="bzrow"><div class="mini"><span class="c fire">5</span><span class="nm">ボルメテ</span></div><div class="mini tap"><span class="c nat">3</span><span class="nm">トップ</span></div></div>
+      <div class="shields"><span class="shieldlab">シールド5</span><div class="shieldrow"><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="chips"><span class="chip">手 <b>5</b></span><span class="chip">マナ <b>4</b></span></div>
+    </div>
+    <div class="side self-bz" style="top:100px;height:80px"><div class="zlabel s">自分</div><div class="bzrow"><div class="mini big tap"><span class="c fire">10</span><span class="nm">スカイソード</span></div><div class="mini big"><span class="c nat">3</span><span class="nm">グレン</span></div></div></div>
+    <div class="dim"></div>
+    <!-- enlarged card -->
+    <div class="popcard">
+      <span class="pc fire">2</span><span class="pnm">爆裂英雄 A・R・T</span>
+      <div class="art"></div>
+      <div class="txt">■ スピードアタッカー<br>■ このクリーチャーが出たとき、相手のクリーチャーを1体破壊してもよい。</div>
+      <span class="ppw">4000</span>
+    </div>
+    <!-- action sheet -->
+    <div class="sheet">
+      <div class="act primary">唱える</div>
+      <div class="act">マナに置く</div>
+      <div class="act">宣言して公開</div>
+      <div class="act">捨てる</div>
+      <div class="act ghost">詳細</div>
+      <div class="sheet-x">✕</div>
+    </div>
+  </div></div>
+</div></div>
+<div class="notes">
+  <div class="note"><span class="num">5</span><div><b>シャドバ式の拡大（Q6）。</b> 触った1枚だけ大きく＝コスト・効果・パワーまで読める。指で隠れない位置（中央やや上）に出す。離す/✕で戻る。</div></div>
+  <div class="note"><span class="num">6</span><div><b>拡大≠確定。</b> 大きくしただけでは場に出ない。**シートのボタンを押して初めて確定**＝誤プレイ防止。盤面が沈むので「今これを操作中」が明確。</div></div>
+  <div class="note"><span class="num">7</span><div><b>操作はゾーン文脈（Q4）。</b> 手札＝唱える/マナに置く/宣言して公開/捨てる/詳細。移動は「ボタン→対象ゾーンが光る→タップ確定」。D&Dは補助で残す。</div></div>
+</div>
+
+<h2>③ ドロワー（右から・ログ/デッキ/グラフ — Q3）</h2>
+<p class="h2note">常設しない。右端の取っ手から引き出す（下端は手札/操作で埋まるので右に）。盤面は背後で生きたまま。閉じれば全幅が盤面へ。</p>
+<div class="stage"><div class="dev-col">
+  <div class="frame-label">844 × 390 — ドロワー展開</div>
+  <div class="phone"><div class="scr"><div class="felt"></div>
+    <div class="hud"><div class="turn"><span class="dot self"></span><span class="tri"></span> <b>T4</b>&nbsp;自分の番</div><div class="hud-r"><div class="ico">≡</div></div></div>
+    <div class="side opp" style="right:300px"><div class="zlabel o">相手</div><div class="bzrow"><div class="mini"><span class="c fire">5</span><span class="nm">ボルメテ</span></div></div><div class="shields"><span class="shieldlab">S5</span><div class="shieldrow"><i></i><i></i><i></i><i></i><i></i></div></div></div>
+    <div class="side self-bz" style="right:300px"><div class="zlabel s">自分</div><div class="bzrow"><div class="mini big tap"><span class="c fire">10</span><span class="nm">スカイソード</span></div></div></div>
+    <div class="scrim"></div>
+    <div class="drawer">
+      <div class="tabs"><div class="tab on">ログ</div><div class="tab">デッキ</div><div class="tab">グラフ</div></div>
+      <div class="logrow"><b>自分</b> スカイソードを召喚</div>
+      <div class="logrow"><b>相手</b> トップギアをタップ（攻撃）</div>
+      <div class="logrow"><b>自分</b> シールド1枚をブレイク</div>
+      <div class="logrow"><b>自分</b> 山札から1枚ドロー（残25）</div>
+      <div class="logrow" style="color:var(--ink3)">…検索・ターン折りたたみは縦スクロール</div>
+    </div>
+  </div></div>
+</div></div>
+<div class="notes"><div class="note"><span class="num">8</span><div><b>ゾーンはタップで一覧。</b> 山札/シールド/墓地をタップ→オーバーレイ。非公開は「自分だけ見る／相手にも公開／手札へ」を分離。相手の非公開は枚数のみ。</div></div></div>
+
+<h2>決定（v2に反映済み） と 次に詰める</h2>
+<div class="cols">
+  <div class="panel dec"><h3>決定（あなたのQ1〜6）</h3><ul>
+    <li><b>Q1</b> シールドは両者「伏せ小列」で見た目比較</li>
+    <li><b>Q2</b> 相手の他ゾーンはチップ＝タップで中身</li>
+    <li><b>Q3</b> ドロワーは右から（任せ）</li>
+    <li><b>Q4</b> タップ選択→シート主導線、D&Dは補助</li>
+    <li><b>Q5</b> 自分は常に下、相手は上</li>
+    <li><b>Q6</b> 1画面詰め込み＋手札はシャドバ式（小→触ると拡大）</li>
+  </ul></div>
+  <div class="panel q"><h3>次に詰めたい（v3）</h3><ul>
+    <li>拡大の出し方: <b>タップで拡大→もう一度で確定</b>／<b>長押しで拡大・離すまで保持</b>？ <span>（誤プレイ防止の操作感）</span></li>
+    <li>相手シールドの<b>ブレイク済み</b>表現（薄点線で十分？）と、相手バトルの攻撃可否の見せ方</li>
+    <li>マナの「使える本数」を数字でも出す？ <span>（例: 使えるマナ 3/5）</span></li>
+    <li>ドロワーのタブ優先順（ログ/デッキ/グラフ）と、対戦中に一番開くのはどれ？</li>
+    <li>相手の手札枚数の変化（引いた/捨てた）を一瞬光らせる等のフィードバック</li>
+  </ul></div>
+</div>
+
+<footer>DUEL TABLE スマホ横 対戦 専用設計 v2 ／ 2026-06-20 ／ 設計見本（カード画像省略）。次：v3でドラフト画面＋上記の細部。</footer>
+</div></body></html>
